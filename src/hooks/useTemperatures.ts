@@ -5,6 +5,7 @@ import type { TemperatureSnapshot } from "../types";
 const EMPTY: TemperatureSnapshot = {
   cpu: null,
   gpu: null,
+  gpuUtil: null,
 };
 
 export function useTemperatures(intervalMs = 1000, enabled = true) {

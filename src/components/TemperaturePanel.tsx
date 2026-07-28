@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { SensorReading } from "../types";
+import { useToast } from "./Toast";
 
 type PawnIoStatus = "ready" | "notInstalled" | "driverPresentButLoadFailed";
 
@@ -17,7 +18,10 @@ interface SensorCardProps {
   extremes: Extremes;
   unavailableHint: ReactNode;
   accent: "cpu" | "gpu";
+  extra?: ReactNode;
 }
+
+const TEMP_ONBOARD_KEY = "cpuze.tempOnboarded";
 
 function formatTemp(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
@@ -45,6 +49,7 @@ function SensorCard({
   extremes,
   unavailableHint,
   accent,
+  extra,
 }: SensorCardProps) {
   const current = reading?.celsius ?? null;
   const avg = averageOf(extremes);
@@ -68,6 +73,8 @@ function SensorCard({
             <span className="temp-current-value">{formatTemp(current)}</span>
             <span className="temp-current-caption">Actuelle</span>
           </div>
+
+          {extra}
 
           <div className="temp-meter" aria-hidden>
             <div
@@ -105,6 +112,7 @@ function SensorCard({
 interface TemperaturePanelProps {
   cpu: SensorReading | null;
   gpu: SensorReading | null;
+  gpuUtil: number | null;
   error: string | null;
   loading: boolean;
 }
@@ -131,15 +139,24 @@ function updateExtremes(prev: Extremes, celsius: number | null): Extremes {
 export function TemperaturePanel({
   cpu,
   gpu,
+  gpuUtil,
   error,
   loading,
 }: TemperaturePanelProps) {
+  const toast = useToast();
   const [cpuExtremes, setCpuExtremes] = useState<Extremes>(emptyExtremes);
   const [gpuExtremes, setGpuExtremes] = useState<Extremes>(emptyExtremes);
   const [pawnio, setPawnio] = useState<PawnIoStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installMsg, setInstallMsg] = useState<string | null>(null);
   const [awaitingDriver, setAwaitingDriver] = useState(false);
+  const [showOnboard, setShowOnboard] = useState(() => {
+    try {
+      return localStorage.getItem(TEMP_ONBOARD_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   useEffect(() => {
     setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
@@ -177,6 +194,7 @@ export function TemperaturePanel({
             setAwaitingDriver(false);
             if (s === "ready") {
               setInstallMsg("Capteurs CPU prêts.");
+              toast.push("PawnIO prêt — temps CPU actifs", "ok");
             } else if (s === "notInstalled") {
               setInstallMsg(
                 "PawnIO pas encore détecté — valide l’UAC si demandé, ou réessaie.",
@@ -190,11 +208,21 @@ export function TemperaturePanel({
       alive = false;
       window.clearInterval(id);
     };
-  }, [awaitingDriver]);
+  }, [awaitingDriver, toast]);
+
+  const dismissOnboard = () => {
+    setShowOnboard(false);
+    try {
+      localStorage.setItem(TEMP_ONBOARD_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
 
   const reset = () => {
     setCpuExtremes(fromSample(cpu?.celsius ?? null));
     setGpuExtremes(fromSample(gpu?.celsius ?? null));
+    toast.push("Min / moy. / max réinitialisés", "info");
   };
 
   const installSensors = async () => {
@@ -206,6 +234,7 @@ export function TemperaturePanel({
         "Installateur lancé — valide l’UAC, puis attends quelques secondes…",
       );
       setAwaitingDriver(true);
+      dismissOnboard();
     } catch (e) {
       setInstallMsg(e instanceof Error ? e.message : String(e));
       setAwaitingDriver(false);
@@ -252,6 +281,21 @@ export function TemperaturePanel({
 
   return (
     <div className="temp-panel">
+      {showOnboard && !cpu && (
+        <div className="temp-onboard" role="note">
+          <div>
+            <strong>Première visite Temp</strong>
+            <p>
+              Sur Ryzen / Intel récents, Windows n’expose souvent pas la temp
+              CPU. Active PawnIO une fois (Admin) pour lire Tctl / Package.
+            </p>
+          </div>
+          <button type="button" className="temp-onboard-dismiss" onClick={dismissOnboard}>
+            OK
+          </button>
+        </div>
+      )}
+
       <div className="temp-toolbar">
         <p className="temp-hint">
           Températures en temps réel — min / moy. / max depuis le dernier reset
@@ -284,9 +328,20 @@ export function TemperaturePanel({
               reading={gpu}
               extremes={gpuExtremes}
               unavailableHint={
-                <p>GPU non détecté (NVML NVIDIA)</p>
+                <p>
+                  GPU non détecté — NVML (NVIDIA), sinon LibreHardwareMonitor
+                  ou HWiNFO.
+                </p>
               }
               accent="gpu"
+              extra={
+                gpuUtil !== null ? (
+                  <div className="temp-util mono">
+                    <span className="temp-util-label">Utilisation</span>
+                    <span className="temp-util-value">{gpuUtil.toFixed(0)}%</span>
+                  </div>
+                ) : null
+              }
             />
           </div>
           {!cpu && pawnio === "ready" && (

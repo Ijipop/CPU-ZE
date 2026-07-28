@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface TitleBarProps {
   compact: boolean;
+  version: string;
   onToggleCompact: () => void;
+  onOpenHelp: () => void;
+  onOpenAbout: () => void;
 }
 
-export function TitleBar({ compact, onToggleCompact }: TitleBarProps) {
+export function TitleBar({
+  compact,
+  version,
+  onToggleCompact,
+  onOpenHelp,
+  onOpenAbout,
+}: TitleBarProps) {
   const win = getCurrentWindow();
   const [maximized, setMaximized] = useState(false);
 
@@ -30,13 +40,41 @@ export function TitleBar({ compact, onToggleCompact }: TitleBarProps) {
           CPU-ZE
         </span>
         {!compact && (
-          <span className="titlebar-sub" data-tauri-drag-region>
-            Mini Task Manager
-          </span>
+          <>
+            <span className="titlebar-sub" data-tauri-drag-region>
+              Mini Task Manager
+            </span>
+            <span className="titlebar-version mono" data-tauri-drag-region>
+              v{version || "…"}
+            </span>
+          </>
         )}
       </div>
 
       <div className="titlebar-controls">
+        {!compact && (
+          <>
+            <button
+              type="button"
+              className="tb-btn"
+              title="Raccourcis (F1)"
+              aria-label="Aide raccourcis"
+              onClick={onOpenHelp}
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              className="tb-btn tb-about"
+              title="À propos"
+              aria-label="À propos"
+              onClick={onOpenAbout}
+            >
+              i
+            </button>
+          </>
+        )}
+
         <button
           type="button"
           className="tb-btn tb-compact"
@@ -117,4 +155,13 @@ export function TitleBar({ compact, onToggleCompact }: TitleBarProps) {
       </div>
     </div>
   );
+}
+
+/** Prefetch version for App root (avoids unused import if inlined). */
+export async function loadAppVersion(): Promise<string> {
+  try {
+    return await getVersion();
+  } catch {
+    return "0.3.2";
+  }
 }

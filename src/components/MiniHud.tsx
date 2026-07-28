@@ -7,6 +7,7 @@ interface MiniHudProps {
   totalMemory: number;
   cpuTemp: SensorReading | null;
   gpuTemp: SensorReading | null;
+  gpuUtil: number | null;
   onExpand: () => void;
 }
 
@@ -37,6 +38,7 @@ export function MiniHud({
   totalMemory,
   cpuTemp,
   gpuTemp,
+  gpuUtil,
   onExpand,
 }: MiniHudProps) {
   const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
@@ -105,6 +107,7 @@ export function MiniHud({
         <span className="mono">
           GPU{" "}
           {gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—"}
+          {gpuUtil !== null ? ` ${gpuUtil.toFixed(0)}%` : ""}
         </span>
         <button type="button" className="mini-expand" onClick={onExpand}>
           Agrandir

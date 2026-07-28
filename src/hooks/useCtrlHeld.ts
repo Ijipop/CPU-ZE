@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 
-/** True while Control is held (freeze process list). */
+/** True while Control is held alone (freeze process list). Ctrl+chord cancels. */
 export function useCtrlHeld() {
   const [held, setHeld] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Control") setHeld(true);
+      if (e.key === "Control") {
+        setHeld(true);
+        return;
+      }
+      // Any other key while Ctrl is down = shortcut chord, don't freeze.
+      if (e.ctrlKey) setHeld(false);
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Control") setHeld(false);

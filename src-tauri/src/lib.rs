@@ -13,26 +13,14 @@ use sysinfo::{Components, System};
 use tauri_plugin_autostart::MacosLauncher;
 use win_metrics::SystemCpuTracker;
 
-/// GitHub fine-grained PAT (Contents: Read) embedded at build via CPUZE_GH_UPDATER_TOKEN.
-const GH_UPDATER_TOKEN: &str = env!("CPUZE_GH_UPDATER_TOKEN");
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut updater = tauri_plugin_updater::Builder::new();
-    if !GH_UPDATER_TOKEN.is_empty() {
-        updater = updater
-            .header("Authorization", format!("Bearer {GH_UPDATER_TOKEN}"))
-            .expect("updater Authorization header")
-            .header("User-Agent", "CPU-ZE")
-            .expect("updater User-Agent header");
-    }
-
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
         ))
-        .plugin(updater.build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(AppState {
             sys: Mutex::new(System::new()),
