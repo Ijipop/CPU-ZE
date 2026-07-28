@@ -29,3 +29,6 @@ src-tauri/target
 *.key.pub
 .env
 .env.*
+latest.json
+test-sign.bin
+test-sign.bin.sig
