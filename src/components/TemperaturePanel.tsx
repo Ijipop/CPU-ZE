@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { SensorReading } from "../types";
+
+type PawnIoStatus = "ready" | "notInstalled" | "driverPresentButLoadFailed";
 
 interface Extremes {
   min: number | null;
   max: number | null;
-  /** Running sum of samples since reset (for average). */
   sum: number;
   count: number;
 }
@@ -134,9 +136,11 @@ export function TemperaturePanel({
 }: TemperaturePanelProps) {
   const [cpuExtremes, setCpuExtremes] = useState<Extremes>(emptyExtremes);
   const [gpuExtremes, setGpuExtremes] = useState<Extremes>(emptyExtremes);
+  const [pawnio, setPawnio] = useState<PawnIoStatus | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const [installMsg, setInstallMsg] = useState<string | null>(null);
+  const [awaitingDriver, setAwaitingDriver] = useState(false);
 
-  // Depend on the reading object (new each poll), not only celsius —
-  // otherwise a stable temp would never feed the average.
   useEffect(() => {
     setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
   }, [cpu]);
@@ -145,10 +149,106 @@ export function TemperaturePanel({
     setGpuExtremes((prev) => updateExtremes(prev, gpu?.celsius ?? null));
   }, [gpu]);
 
+  useEffect(() => {
+    let alive = true;
+    void invoke<PawnIoStatus>("pawnio_status")
+      .then((s) => {
+        if (alive) setPawnio(s);
+      })
+      .catch(() => {
+        if (alive) setPawnio(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [cpu]);
+
+  useEffect(() => {
+    if (!awaitingDriver) return;
+    let alive = true;
+    let ticks = 0;
+    const id = window.setInterval(() => {
+      ticks += 1;
+      void invoke<PawnIoStatus>("pawnio_status")
+        .then((s) => {
+          if (!alive) return;
+          setPawnio(s);
+          if (s === "ready" || ticks >= 20) {
+            setAwaitingDriver(false);
+            if (s === "ready") {
+              setInstallMsg("Capteurs CPU prêts.");
+            } else if (s === "notInstalled") {
+              setInstallMsg(
+                "PawnIO pas encore détecté — valide l’UAC si demandé, ou réessaie.",
+              );
+            }
+          }
+        })
+        .catch(() => {});
+    }, 1500);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [awaitingDriver]);
+
   const reset = () => {
     setCpuExtremes(fromSample(cpu?.celsius ?? null));
     setGpuExtremes(fromSample(gpu?.celsius ?? null));
   };
+
+  const installSensors = async () => {
+    setInstalling(true);
+    setInstallMsg(null);
+    try {
+      await invoke("install_pawnio");
+      setInstallMsg(
+        "Installateur lancé — valide l’UAC, puis attends quelques secondes…",
+      );
+      setAwaitingDriver(true);
+    } catch (e) {
+      setInstallMsg(e instanceof Error ? e.message : String(e));
+      setAwaitingDriver(false);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const showCta =
+    pawnio === "notInstalled" || pawnio === "driverPresentButLoadFailed";
+
+  const cpuHint = showCta ? (
+    <div className="temp-cta">
+      <p>
+        {pawnio === "driverPresentButLoadFailed"
+          ? "PawnIO détecté mais pas encore prêt — réessaie dans un instant, ou relance l’installateur."
+          : "Capteurs CPU bas niveau (PawnIO) — une seule fois, avec droits Admin."}
+      </p>
+      <button
+        type="button"
+        className="temp-cta-btn"
+        disabled={installing || awaitingDriver}
+        onClick={() => void installSensors()}
+      >
+        {installing
+          ? "Lancement…"
+          : awaitingDriver
+            ? "En attente du driver…"
+            : pawnio === "driverPresentButLoadFailed"
+              ? "Réessayer l’installateur"
+              : "Activer les capteurs CPU"}
+      </button>
+      {installMsg && <p className="temp-cta-msg">{installMsg}</p>}
+    </div>
+  ) : (
+    <div className="temp-cta">
+      <p>Température CPU indisponible pour l’instant.</p>
+      <p className="temp-cta-sub">
+        Si tu viens d’installer PawnIO, attends quelques secondes ou redémarre
+        CPU-ZE.
+      </p>
+    </div>
+  );
 
   return (
     <div className="temp-panel">
@@ -176,36 +276,23 @@ export function TemperaturePanel({
               title="CPU"
               reading={cpu}
               extremes={cpuExtremes}
-              unavailableHint={
-                <>
-                  <p>
-                    Windows n’expose pas la temp CPU sur ce PC (ACPI vide —
-                    normal sur Ryzen).
-                  </p>
-                  <p>
-                    Installe{" "}
-                    <strong>LibreHardwareMonitor</strong>, puis : Options →{" "}
-                    <em>Remote Web Server</em> → Start (port 8085), et laisse
-                    LHM ouvert.
-                  </p>
-                </>
-              }
+              unavailableHint={cpuHint}
               accent="cpu"
             />
             <SensorCard
               title="GPU"
               reading={gpu}
               extremes={gpuExtremes}
-              unavailableHint="GPU non détecté (NVML / LibreHardwareMonitor)"
+              unavailableHint={
+                <p>GPU non détecté (NVML NVIDIA)</p>
+              }
               accent="gpu"
             />
           </div>
-          {!cpu && (
+          {!cpu && pawnio === "ready" && (
             <p className="temp-footnote">
-              CPU-ZE lit LibreHardwareMonitor (
-              http://127.0.0.1:8085/data.json ) en priorité — utile pour suivre
-              max/moy. sous charge (ex. pâte thermique). HWiNFO Shared Memory
-              reste un fallback optionnel.
+              PawnIO est prêt mais la lecture a échoué — CPU non supporté ou
+              accès PCI occupé. Réessaie dans un instant.
             </p>
           )}
         </>

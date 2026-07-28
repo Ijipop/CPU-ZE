@@ -233,9 +233,20 @@ pub fn kill_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> 
 }
 
 fn read_cpu_temperature(components: &mut Components) -> Option<SensorReading> {
-    crate::temps::read_cpu_from_lhm()
+    crate::pawnio::read_cpu_temperature()
+        .or_else(crate::temps::read_cpu_from_lhm)
         .or_else(crate::temps::read_cpu_from_hwinfo)
         .or_else(|| crate::temps::read_cpu_from_acpi(components))
+}
+
+#[tauri::command]
+pub fn pawnio_status() -> crate::pawnio::PawnIoStatus {
+    crate::pawnio::driver_status()
+}
+
+#[tauri::command]
+pub fn install_pawnio() -> Result<(), String> {
+    crate::pawnio::install_driver_elevated()
 }
 
 fn ensure_nvml(nvml_slot: &mut Option<Nvml>) -> Option<&Nvml> {
