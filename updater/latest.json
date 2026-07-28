@@ -1,11 +1,11 @@
 {
-    "version":  "0.3.10",
-    "notes":  "## What\u0027s new\n- **Fen├¬tre de mise ├á jour** ├á lÔÇÖouverture (suggestion, jamais forc├®e) avec les nouveaut├®s\n- **Plus tard** m├®morise la version jusquÔÇÖ├á la suivante\n- Morph micro Ôåö normal : voile opaque pour supprimer le ghost / artefact visuel\n\n## Test\n1. Installe 0.3.10\n2. Alt+Entr├®e : plus de fant├┤me de la mini fen├¬tre\n3. ├Ç la prochaine release, la dialog MAJ affichera ce changelog",
-    "pub_date":  "2026-07-28T20:17:27Z",
+    "version":  "0.3.11",
+    "notes":  "## What\u0027s new\n- Onglet **Temp** : cartes CPU/GPU plus r├®actives (partagent la hauteur, se compressent)\n- Plus dÔÇÖunderlap du footer (d├®marrage / tips) sous les cartes\n\n## Test\n1. Installe 0.3.11\n2. Onglet Temp ÔåÆ r├®duis la fen├¬tre ÔåÆ les 2 cartes restent lisibles, footer visible",
+    "pub_date":  "2026-07-28T21:00:04Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVdzV3FVd3ZkaHZuNlRCWWxqc0NmbGR6c3oxcDBGYlVZc1ppWmppZVlzNDV2bnFDVTBIRkhNUkdhMW0vcmNPdkFUUzFuMWRESkFnQy9DejVKV2U2L0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjY5ODE4CWZpbGU6Q1BVLVpFXzAuMy4xMF94NjQtc2V0dXAuZXhlCjhlOFZkUHNBUE94dVJJU25rZUtsSUtMaWVWYlVYMFpDbnNTandySkkzaEp0Y2REbE5LdzRHbnEvRUNKb09YUDMvMmpTTDJtYks3ZVhHMHNXb3FQQ0RnPT0K",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.10/CPU-ZE_0.3.10_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWRRa3VsTitNWFRRempMR2U3QnpqUG16TkZUS0Nzam9RVzI5YnlKTU92YXlHRE8wTWcvOUo3bDhKRzM5QnFVeVFMVDNXdGxnWFBJcnBrZXNtYUc5cHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjcyMzc4CWZpbGU6Q1BVLVpFXzAuMy4xMV94NjQtc2V0dXAuZXhlCmlLTTh2citHa3l3dXBvL2lydVNJTno3VnBsTTh6NlZ1MFdOdDdhS2E5aDFaTlhKaU9yck1wWStneDBmQlZEMDhqbkxveDVDSmtpcUcrTjY1RENwSUJRPT0K",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.11/CPU-ZE_0.3.11_x64-setup.exe"
                                          }
                   }
 }
