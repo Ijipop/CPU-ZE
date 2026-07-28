@@ -78,7 +78,7 @@ export function TitleBar({
         <button
           type="button"
           className="tb-btn tb-compact"
-          title={compact ? "Agrandir" : "Mode micro"}
+          title={compact ? "Agrandir (Alt+Entrée)" : "Mode micro (Alt+Entrée)"}
           aria-label={compact ? "Quitter le mode micro" : "Passer en mode micro"}
           onClick={onToggleCompact}
         >

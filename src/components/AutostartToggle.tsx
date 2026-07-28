@@ -8,12 +8,16 @@ interface AutostartToggleProps {
   updateStatus: UpdateStatus;
   updateMessage: string | null;
   onCheckUpdate: () => void;
+  startCompact: boolean;
+  onToggleStartCompact: (next: boolean) => void;
 }
 
 export function AutostartToggle({
   updateStatus,
   updateMessage,
   onCheckUpdate,
+  startCompact,
+  onToggleStartCompact,
 }: AutostartToggleProps) {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -67,9 +71,17 @@ export function AutostartToggle({
           />
           <span>Ouvrir au démarrage (Admin)</span>
         </label>
+        <label className="autostart">
+          <input
+            type="checkbox"
+            checked={startCompact}
+            onChange={(e) => onToggleStartCompact(e.target.checked)}
+          />
+          <span>Démarrer en mode micro</span>
+        </label>
         {error && <span className="footer-error">{error}</span>}
         <span className="footer-tip">
-          Ctrl = figer · Clic droit → Terminer · démarrage élevé = temps CPU sans UAC
+          Alt+Entrée = micro · Ctrl = figer · position mémorisée
         </span>
       </div>
       <div className="footer-right">
