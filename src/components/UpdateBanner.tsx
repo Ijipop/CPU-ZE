@@ -8,6 +8,8 @@ interface UpdateBannerProps {
   error: string | null;
   onInstall: () => void;
   onDismiss: () => void;
+  /** Hide the “available” strip when the modal prompt is already open. */
+  suppressAvailable?: boolean;
 }
 
 export function UpdateBanner({
@@ -17,6 +19,7 @@ export function UpdateBanner({
   error,
   onInstall,
   onDismiss,
+  suppressAvailable = false,
 }: UpdateBannerProps) {
   if (
     status !== "available" &&
@@ -24,6 +27,15 @@ export function UpdateBanner({
     status !== "installing" &&
     status !== "error"
   ) {
+    return null;
+  }
+
+  if (suppressAvailable && status === "available") {
+    return null;
+  }
+
+  // Progress / errors stay in the modal when it is open.
+  if (suppressAvailable && (status === "downloading" || status === "installing" || status === "error")) {
     return null;
   }
 

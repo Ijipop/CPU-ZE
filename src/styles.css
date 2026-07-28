@@ -46,6 +46,7 @@ body,
   margin: 0;
   height: 100%;
   width: 100%;
+  background: var(--bg-0);
 }
 
 body {
@@ -70,6 +71,7 @@ body {
   padding: calc(var(--titlebar-h) + 12px) 22px 14px;
   gap: 14px;
   isolation: isolate;
+  background: var(--bg-0);
   transition:
     padding 0.17s cubic-bezier(0.22, 1, 0.36, 1),
     gap 0.17s cubic-bezier(0.22, 1, 0.36, 1);
@@ -86,19 +88,26 @@ body {
   display: flex;
   flex-direction: column;
   gap: inherit;
-  opacity: 1;
-  transform: translateZ(0) scale(1);
-  transform-origin: top left;
-  transition:
-    opacity 0.1s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
 }
 
-.app.is-morphing .app-body {
-  opacity: 0;
-  transform: scale(0.99);
+/* Solid cover during window morph — hides WebView/DWM ghost frames. */
+.morph-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  background: var(--bg-0);
   pointer-events: none;
+}
+
+.app.is-morphing {
+  transition: none;
+}
+
+.app.is-morphing .app-body,
+.app.is-morphing .titlebar,
+.app.is-morphing .bg-glow,
+.app.is-morphing .bg-grid {
+  visibility: hidden;
 }
 
 .bg-glow {
@@ -1595,6 +1604,112 @@ body {
 .modal-btn-ghost:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
+}
+
+/* —— Update prompt dialog —— */
+.update-dialog-backdrop {
+  z-index: 220;
+}
+
+.update-dialog {
+  position: relative;
+  overflow: hidden;
+  border-top: 2px solid var(--accent);
+  background:
+    linear-gradient(165deg, rgba(18, 40, 46, 0.95) 0%, #121c26 45%, #101820 100%);
+}
+
+.update-dialog-glow {
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(46, 196, 182, 0.22), transparent 55%),
+    radial-gradient(ellipse at 90% 10%, rgba(58, 166, 255, 0.12), transparent 50%);
+  pointer-events: none;
+}
+
+.update-dialog-kicker {
+  position: relative;
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.update-dialog-title {
+  position: relative;
+}
+
+.update-dialog-lead {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.update-dialog-notes {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(46, 196, 182, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.update-dialog-notes-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.update-notes-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.update-notes-list li + li {
+  margin-top: 4px;
+}
+
+.update-notes-raw {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.update-dialog-progress {
+  position: relative;
+  margin: 0 0 14px;
+}
+
+.update-dialog-error {
+  position: relative;
+  margin: 0 0 12px;
+  color: #ff8f8f;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.update-dialog-actions {
+  position: relative;
+}
+
+.update-dialog-actions .modal-btn:disabled,
+.update-dialog-actions .modal-btn-ghost:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .shortcuts-list {
