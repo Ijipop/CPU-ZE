@@ -3,7 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import type { SensorReading } from "../types";
 import { useToast } from "./Toast";
 
-type PawnIoStatus = "ready" | "notInstalled" | "driverPresentButLoadFailed";
+type PawnIoStatus =
+  | "ready"
+  | "notInstalled"
+  | "needsElevation"
+  | "driverPresentButLoadFailed";
 
 interface Extremes {
   min: number | null;
@@ -190,11 +194,15 @@ export function TemperaturePanel({
         .then((s) => {
           if (!alive) return;
           setPawnio(s);
-          if (s === "ready" || ticks >= 20) {
+          if (s === "ready" || s === "needsElevation" || ticks >= 20) {
             setAwaitingDriver(false);
             if (s === "ready") {
               setInstallMsg("Capteurs CPU prêts.");
               toast.push("PawnIO prêt — temps CPU actifs", "ok");
+            } else if (s === "needsElevation") {
+              setInstallMsg(
+                "Driver installé — relance CPU-ZE en Admin pour lire les temps.",
+              );
             } else if (s === "notInstalled") {
               setInstallMsg(
                 "PawnIO pas encore détecté — valide l’UAC si demandé, ou réessaie.",
@@ -243,41 +251,76 @@ export function TemperaturePanel({
     }
   };
 
-  const showCta =
-    pawnio === "notInstalled" || pawnio === "driverPresentButLoadFailed";
+  const elevateApp = async () => {
+    setInstalling(true);
+    setInstallMsg(null);
+    try {
+      await invoke("relaunch_elevated");
+      setInstallMsg("Nouvelle fenêtre Admin lancée — tu peux fermer celle-ci.");
+      toast.push("CPU-ZE relancé en Admin", "ok");
+    } catch (e) {
+      setInstallMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setInstalling(false);
+    }
+  };
 
-  const cpuHint = showCta ? (
-    <div className="temp-cta">
-      <p>
-        {pawnio === "driverPresentButLoadFailed"
-          ? "PawnIO détecté mais pas encore prêt — réessaie dans un instant, ou relance l’installateur."
-          : "Capteurs CPU bas niveau (PawnIO) — une seule fois, avec droits Admin."}
-      </p>
-      <button
-        type="button"
-        className="temp-cta-btn"
-        disabled={installing || awaitingDriver}
-        onClick={() => void installSensors()}
-      >
-        {installing
-          ? "Lancement…"
-          : awaitingDriver
-            ? "En attente du driver…"
-            : pawnio === "driverPresentButLoadFailed"
-              ? "Réessayer l’installateur"
-              : "Activer les capteurs CPU"}
-      </button>
-      {installMsg && <p className="temp-cta-msg">{installMsg}</p>}
-    </div>
-  ) : (
-    <div className="temp-cta">
-      <p>Température CPU indisponible pour l’instant.</p>
-      <p className="temp-cta-sub">
-        Si tu viens d’installer PawnIO, attends quelques secondes ou redémarre
-        CPU-ZE.
-      </p>
-    </div>
-  );
+  const showInstallCta = pawnio === "notInstalled";
+  const showElevateCta =
+    pawnio === "needsElevation" ||
+    (pawnio === "driverPresentButLoadFailed" && !cpu);
+
+  const cpuHint =
+    showElevateCta || showInstallCta ? (
+      <div className="temp-cta">
+        <p>
+          {showElevateCta
+            ? "PawnIO est installé, mais Windows n’autorise la lecture des capteurs qu’en Administrateur."
+            : "Capteurs CPU bas niveau (PawnIO) — une seule fois, avec droits Admin."}
+        </p>
+        {showElevateCta ? (
+          <button
+            type="button"
+            className="temp-cta-btn"
+            disabled={installing}
+            onClick={() => void elevateApp()}
+          >
+            {installing ? "Lancement…" : "Relancer CPU-ZE en Admin"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="temp-cta-btn"
+            disabled={installing || awaitingDriver}
+            onClick={() => void installSensors()}
+          >
+            {installing
+              ? "Lancement…"
+              : awaitingDriver
+                ? "En attente du driver…"
+                : "Activer les capteurs CPU"}
+          </button>
+        )}
+        {showElevateCta && pawnio === "driverPresentButLoadFailed" && (
+          <button
+            type="button"
+            className="temp-cta-btn temp-cta-btn-secondary"
+            disabled={installing || awaitingDriver}
+            onClick={() => void installSensors()}
+          >
+            Réinstaller PawnIO
+          </button>
+        )}
+        {installMsg && <p className="temp-cta-msg">{installMsg}</p>}
+      </div>
+    ) : (
+      <div className="temp-cta">
+        <p>Température CPU indisponible pour l’instant.</p>
+        <p className="temp-cta-sub">
+          Si tu viens d’installer PawnIO, relance CPU-ZE en Admin (UAC).
+        </p>
+      </div>
+    );
 
   return (
     <div className="temp-panel">
@@ -300,8 +343,13 @@ export function TemperaturePanel({
         <p className="temp-hint">
           Températures en temps réel — min / moy. / max depuis le dernier reset
         </p>
-        <button type="button" className="temp-reset" onClick={reset}>
-          Reset min / moy. / max
+        <button
+          type="button"
+          className="temp-reset"
+          onClick={reset}
+          title="Reset min / moy. / max"
+        >
+          Reset
         </button>
       </div>
 

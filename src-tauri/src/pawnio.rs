@@ -1,28 +1,24 @@
-//! PawnIO client — DeviceIoControl protocol matching LibreHardwareMonitor.
-//! Requires the signed PawnIO kernel driver (https://pawnio.eu/).
+//! PawnIO client via official PawnIOLib.dll (open requires Administrator on current drivers).
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use windows::core::PCWSTR;
-use windows::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, WAIT_OBJECT_0};
-use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+use windows::core::{s, PCWSTR};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0};
+use windows::Win32::Security::{
+    GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+};
+use windows::Win32::System::LibraryLoader::{
+    GetProcAddress, LoadLibraryExW, LOAD_WITH_ALTERED_SEARCH_PATH,
 };
 use windows::Win32::System::Threading::{
-    CreateMutexW, ReleaseMutex, WaitForSingleObject,
+    CreateMutexW, GetCurrentProcess, OpenProcessToken, ReleaseMutex, WaitForSingleObject,
 };
-use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
 use crate::commands::SensorReading;
-
-const DEVICE_TYPE: u32 = 41394u32 << 16;
-const IOCTL_PIO_LOAD_BINARY: u32 = DEVICE_TYPE | (0x821 << 2);
-const IOCTL_PIO_EXECUTE_FN: u32 = DEVICE_TYPE | (0x841 << 2);
-const FN_NAME_LENGTH: usize = 32;
 
 const THM_TCON_CUR_TMP: u64 = 0x0005_9800;
 const F17H_TEMP_RANGE_SEL_MASK: u32 = 0x8_0000;
@@ -31,21 +27,46 @@ const F17H_TEMP_TJ_SEL_MASK: u32 = 0x3_0000;
 const IA32_TEMPERATURE_TARGET: u64 = 0x1A2;
 const IA32_PACKAGE_THERM_STATUS: u64 = 0x1B1;
 
-struct PawnHandle(HANDLE);
+const HRESULT_ACCESS_DENIED: i32 = 0x8007_0005u32 as i32;
 
-unsafe impl Send for PawnHandle {}
+type FnOpen = unsafe extern "system" fn(*mut HANDLE) -> i32;
+type FnLoad = unsafe extern "system" fn(HANDLE, *const u8, usize) -> i32;
+type FnExecute = unsafe extern "system" fn(
+    HANDLE,
+    *const u8,
+    *const u64,
+    usize,
+    *mut u64,
+    usize,
+    *mut usize,
+) -> i32;
+type FnClose = unsafe extern "system" fn(HANDLE) -> i32;
 
-impl Drop for PawnHandle {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = CloseHandle(self.0);
-        }
-    }
+struct PawnApi {
+    _lib: windows::Win32::Foundation::HMODULE,
+    open: FnOpen,
+    load: FnLoad,
+    execute: FnExecute,
+    close: FnClose,
 }
 
+unsafe impl Send for PawnApi {}
+unsafe impl Sync for PawnApi {}
+
 struct LoadedModule {
-    handle: PawnHandle,
+    handle: HANDLE,
     kind: ModuleKind,
+    api: &'static PawnApi,
+}
+
+unsafe impl Send for LoadedModule {}
+
+impl Drop for LoadedModule {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = (self.api.close)(self.handle);
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -54,6 +75,7 @@ enum ModuleKind {
     IntelMsr,
 }
 
+static API: Mutex<Option<&'static PawnApi>> = Mutex::new(None);
 static MODULE: Mutex<Option<LoadedModule>> = Mutex::new(None);
 
 fn wide(s: &str) -> Vec<u16> {
@@ -64,8 +86,24 @@ fn wide(s: &str) -> Vec<u16> {
         .collect()
 }
 
-pub fn is_driver_present() -> bool {
-    open_device().is_some()
+pub fn is_elevated() -> bool {
+    unsafe {
+        let mut token = HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return false;
+        }
+        let mut elevation = TOKEN_ELEVATION::default();
+        let mut ret_len = 0u32;
+        let ok = GetTokenInformation(
+            token,
+            TokenElevation,
+            Some(&mut elevation as *mut _ as *mut _),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut ret_len,
+        );
+        let _ = CloseHandle(token);
+        ok.is_ok() && elevation.TokenIsElevated != 0
+    }
 }
 
 /// Matches LHM: Uninstall key written by PawnIO_setup.exe.
@@ -93,26 +131,6 @@ fn is_listed_in_registry() -> bool {
     ok
 }
 
-fn open_device() -> Option<PawnHandle> {
-    let path = wide(r"\\?\GLOBALROOT\Device\PawnIO");
-    let handle = unsafe {
-        CreateFileW(
-            PCWSTR(path.as_ptr()),
-            GENERIC_READ.0 | GENERIC_WRITE.0,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            None,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            None,
-        )
-    }
-    .ok()?;
-    if handle.is_invalid() {
-        return None;
-    }
-    Some(PawnHandle(handle))
-}
-
 fn resource_dir() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
@@ -132,65 +150,66 @@ fn resource_dir() -> PathBuf {
     PathBuf::from("src-tauri/resources/pawnio")
 }
 
-fn load_binary(handle: &PawnHandle, bin: &[u8]) -> bool {
-    let mut returned = 0u32;
-    unsafe {
-        DeviceIoControl(
-            handle.0,
-            IOCTL_PIO_LOAD_BINARY,
-            Some(bin.as_ptr() as *const _),
-            bin.len() as u32,
-            None,
-            0,
-            Some(&mut returned),
-            None,
-        )
+fn lib_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    out.push(PathBuf::from(r"C:\Program Files\PawnIO\PawnIOLib.dll"));
+    out.push(resource_dir().join("PawnIOLib.dll"));
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            out.push(dir.join("PawnIOLib.dll"));
+            out.push(dir.join("resources").join("pawnio").join("PawnIOLib.dll"));
+        }
     }
-    .is_ok()
+    out
 }
 
-fn execute(handle: &PawnHandle, name: &str, input: &[u64], out_len: usize) -> Option<Vec<u64>> {
-    let mut total_in = vec![0u8; FN_NAME_LENGTH + input.len() * 8];
-    let name_bytes = name.as_bytes();
-    let copy_len = name_bytes.len().min(FN_NAME_LENGTH - 1);
-    total_in[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
-    for (i, val) in input.iter().enumerate() {
-        let off = FN_NAME_LENGTH + i * 8;
-        total_in[off..off + 8].copy_from_slice(&val.to_le_bytes());
+fn load_api() -> Option<&'static PawnApi> {
+    if let Ok(slot) = API.lock() {
+        if let Some(api) = *slot {
+            return Some(api);
+        }
     }
 
-    let mut output = vec![0u8; out_len.max(1) * 8];
-    let mut returned = 0u32;
-    let ok = unsafe {
-        DeviceIoControl(
-            handle.0,
-            IOCTL_PIO_EXECUTE_FN,
-            Some(total_in.as_ptr() as *const _),
-            total_in.len() as u32,
-            Some(output.as_mut_ptr() as *mut _),
-            output.len() as u32,
-            Some(&mut returned),
-            None,
-        )
+    for path in lib_candidates() {
+        if !path.exists() {
+            continue;
+        }
+        let w = wide(&path.to_string_lossy());
+        let lib = unsafe {
+            LoadLibraryExW(
+                PCWSTR(w.as_ptr()),
+                None,
+                LOAD_WITH_ALTERED_SEARCH_PATH,
+            )
+        }
+        .ok()?;
+
+        let open = unsafe { GetProcAddress(lib, s!("pawnio_open"))? };
+        let load = unsafe { GetProcAddress(lib, s!("pawnio_load"))? };
+        let execute = unsafe { GetProcAddress(lib, s!("pawnio_execute"))? };
+        let close = unsafe { GetProcAddress(lib, s!("pawnio_close"))? };
+
+        let api = Box::leak(Box::new(PawnApi {
+            _lib: lib,
+            open: unsafe { std::mem::transmute::<_, FnOpen>(open) },
+            load: unsafe { std::mem::transmute::<_, FnLoad>(load) },
+            execute: unsafe { std::mem::transmute::<_, FnExecute>(execute) },
+            close: unsafe { std::mem::transmute::<_, FnClose>(close) },
+        }));
+
+        if let Ok(mut slot) = API.lock() {
+            *slot = Some(api);
+        }
+        return Some(api);
     }
-    .is_ok();
-    if !ok {
-        return None;
-    }
-    let n = (returned as usize / 8).min(out_len);
-    let mut out = Vec::with_capacity(n);
-    for i in 0..n {
-        let mut buf = [0u8; 8];
-        buf.copy_from_slice(&output[i * 8..i * 8 + 8]);
-        out.push(u64::from_le_bytes(buf));
-    }
-    Some(out)
+    None
 }
 
 fn with_pci_mutex<T>(f: impl FnOnce() -> Option<T>) -> Option<T> {
-    let name = wide(r"\BaseNamedObjects\Access_PCI");
+    // Win32 name maps to \BaseNamedObjects\Access_PCI (same as LHM / PawnIO docs).
+    let name = wide(r"Global\Access_PCI");
     let mutex = unsafe { CreateMutexW(None, false, PCWSTR(name.as_ptr())) }.ok()?;
-    let wait = unsafe { WaitForSingleObject(mutex, 50) };
+    let wait = unsafe { WaitForSingleObject(mutex, 2000) };
     if wait != WAIT_OBJECT_0 {
         unsafe {
             let _ = CloseHandle(mutex);
@@ -203,12 +222,6 @@ fn with_pci_mutex<T>(f: impl FnOnce() -> Option<T>) -> Option<T> {
         let _ = CloseHandle(mutex);
     }
     result
-}
-
-fn execute_on_loaded(name: &str, input: &[u64], out_len: usize) -> Option<Vec<u64>> {
-    let slot = MODULE.lock().ok()?;
-    let module = slot.as_ref()?;
-    execute(&module.handle, name, input, out_len)
 }
 
 #[derive(Clone, Copy)]
@@ -236,6 +249,41 @@ fn cpu_vendor() -> CpuVendor {
     CpuVendor::Other
 }
 
+fn decode_amd_tctl(raw: u32) -> f32 {
+    let temp_offset_flag = (raw & F17H_TEMP_RANGE_SEL_MASK) != 0
+        || (raw & F17H_TEMP_TJ_SEL_MASK) == F17H_TEMP_TJ_SEL_MASK;
+    let temperature = (raw >> 21) * 125;
+    let mut t = temperature as f32 * 0.001;
+    if temp_offset_flag {
+        t -= 49.0;
+    }
+    t
+}
+
+fn execute_on_loaded(name: &str, input: &[u64], out_len: usize) -> Option<Vec<u64>> {
+    let slot = MODULE.lock().ok()?;
+    let module = slot.as_ref()?;
+    let mut output = vec![0u64; out_len.max(1)];
+    let mut returned = 0usize;
+    let name_c = std::ffi::CString::new(name).ok()?;
+    let hr = unsafe {
+        (module.api.execute)(
+            module.handle,
+            name_c.as_ptr() as *const u8,
+            input.as_ptr(),
+            input.len(),
+            output.as_mut_ptr(),
+            output.len(),
+            &mut returned,
+        )
+    };
+    if hr < 0 {
+        return None;
+    }
+    output.truncate(returned.min(out_len));
+    Some(output)
+}
+
 fn read_smn(offset: u64) -> Option<u32> {
     with_pci_mutex(|| {
         let out = execute_on_loaded("ioctl_read_smn", &[offset], 1)?;
@@ -246,17 +294,6 @@ fn read_smn(offset: u64) -> Option<u32> {
 fn read_msr(index: u64) -> Option<u64> {
     let out = execute_on_loaded("ioctl_read_msr", &[index], 1)?;
     Some(*out.first()?)
-}
-
-fn decode_amd_tctl(raw: u32) -> f32 {
-    let temp_offset_flag = (raw & F17H_TEMP_RANGE_SEL_MASK) != 0
-        || (raw & F17H_TEMP_TJ_SEL_MASK) == F17H_TEMP_TJ_SEL_MASK;
-    let temperature = (raw >> 21) * 125;
-    let mut t = temperature as f32 * 0.001;
-    if temp_offset_flag {
-        t -= 49.0;
-    }
-    t
 }
 
 fn read_amd_package_temp() -> Option<SensorReading> {
@@ -293,40 +330,64 @@ fn read_intel_package_temp() -> Option<SensorReading> {
     })
 }
 
-fn try_init() -> bool {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OpenError {
+    AccessDenied,
+    Other,
+}
+
+fn try_init() -> Result<(), OpenError> {
     if let Ok(slot) = MODULE.lock() {
         if slot.is_some() {
-            return true;
+            return Ok(());
         }
     }
+
+    let Some(api) = load_api() else {
+        return Err(OpenError::Other);
+    };
+
     let vendor = cpu_vendor();
     let (bin_name, kind) = match vendor {
         CpuVendor::Amd => ("AMDFamily17.bin", ModuleKind::AmdFamily17),
         CpuVendor::Intel => ("IntelMSR.bin", ModuleKind::IntelMsr),
-        CpuVendor::Other => return false,
+        CpuVendor::Other => return Err(OpenError::Other),
     };
     let path = resource_dir().join(bin_name);
     let Ok(bin) = fs::read(&path) else {
-        return false;
+        return Err(OpenError::Other);
     };
-    let Some(handle) = open_device() else {
-        return false;
-    };
-    if !load_binary(&handle, &bin) {
-        return false;
+
+    let mut handle = HANDLE::default();
+    let hr = unsafe { (api.open)(&mut handle) };
+    if hr < 0 {
+        if hr == HRESULT_ACCESS_DENIED {
+            return Err(OpenError::AccessDenied);
+        }
+        return Err(OpenError::Other);
     }
+
+    let hr = unsafe { (api.load)(handle, bin.as_ptr(), bin.len()) };
+    if hr < 0 {
+        unsafe {
+            let _ = (api.close)(handle);
+        }
+        return Err(OpenError::Other);
+    }
+
     if let Ok(mut slot) = MODULE.lock() {
-        *slot = Some(LoadedModule { handle, kind });
-        true
+        *slot = Some(LoadedModule { handle, kind, api });
+        Ok(())
     } else {
-        false
+        unsafe {
+            let _ = (api.close)(handle);
+        }
+        Err(OpenError::Other)
     }
 }
 
 pub fn read_cpu_temperature() -> Option<SensorReading> {
-    if !try_init() {
-        return None;
-    }
+    try_init().ok()?;
     let kind = MODULE.lock().ok()?.as_ref()?.kind;
     match kind {
         ModuleKind::AmdFamily17 => read_amd_package_temp(),
@@ -339,21 +400,35 @@ pub fn read_cpu_temperature() -> Option<SensorReading> {
 pub enum PawnIoStatus {
     Ready,
     NotInstalled,
+    /// Driver/DLL present but opening the device requires elevation.
+    NeedsElevation,
     DriverPresentButLoadFailed,
 }
 
 pub fn driver_status() -> PawnIoStatus {
-    if is_driver_present() {
-        if try_init() {
-            PawnIoStatus::Ready
-        } else {
-            PawnIoStatus::DriverPresentButLoadFailed
+    match try_init() {
+        Ok(()) => PawnIoStatus::Ready,
+        Err(OpenError::AccessDenied) => {
+            if is_listed_in_registry() || lib_candidates().iter().any(|p| p.exists()) {
+                PawnIoStatus::NeedsElevation
+            } else {
+                PawnIoStatus::NotInstalled
+            }
         }
-    } else if is_listed_in_registry() {
-        // Installer finished but device not open yet (service starting).
-        PawnIoStatus::DriverPresentButLoadFailed
-    } else {
-        PawnIoStatus::NotInstalled
+        Err(OpenError::Other) => {
+            if is_listed_in_registry() {
+                if is_elevated() {
+                    PawnIoStatus::DriverPresentButLoadFailed
+                } else {
+                    // Non-elevated + registry: most often ACL, not a broken install.
+                    PawnIoStatus::NeedsElevation
+                }
+            } else if Path::new(r"C:\Program Files\PawnIO\PawnIOLib.dll").exists() {
+                PawnIoStatus::NeedsElevation
+            } else {
+                PawnIoStatus::NotInstalled
+            }
+        }
     }
 }
 
@@ -387,6 +462,31 @@ pub fn install_driver_elevated() -> Result<(), String> {
     }
     if let Ok(mut slot) = MODULE.lock() {
         *slot = None;
+    }
+    Ok(())
+}
+
+/// Relaunch CPU-ZE elevated so PawnIO device can be opened.
+pub fn relaunch_elevated() -> Result<(), String> {
+    let exe = std::env::current_exe()
+        .map_err(|e| format!("Impossible de localiser cpu-ze.exe ({e})"))?;
+    let path = wide(&exe.to_string_lossy());
+    let op = wide("runas");
+    let ret = unsafe {
+        ShellExecuteW(
+            None,
+            PCWSTR(op.as_ptr()),
+            PCWSTR(path.as_ptr()),
+            PCWSTR::null(),
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if (ret.0 as usize) <= 32 {
+        return Err(format!(
+            "Échec relance Admin (code {}) — UAC annulé ?",
+            ret.0 as usize
+        ));
     }
     Ok(())
 }
