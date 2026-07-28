@@ -8,9 +8,10 @@ Mini Task Manager Windows — léger, rapide, et soigné.
 - Onglet **Temp** (CPU / GPU) avec **actuelle / min / moyenne / max** + reset + **GPU util %** (NVML)
 - Stats globales (CPU total, RAM utilisée, nombre de processus) — clic sur RAM pour basculer Go ↔ %
 - Clic droit → **Terminer la tâche** (confirm in-app, garde-fous critiques)
-- **Mode micro** (Compact) : HUD always-on-top avec CPU / RAM / temps / GPU %
+- **Mode micro** (Compact) : HUD always-on-top avec CPU / RAM / temps / GPU % — **Alt+Entrée** pour basculer
+- Option **Démarrer en mode micro** + **position mémorisée** (multi-écrans)
 - **À propos** + **aide raccourcis** (F1 / ?) — version visible dans la titlebar
-- Option **Ouvrir au démarrage de Windows**
+- Option **Ouvrir au démarrage (Admin)**
 - **Mise à jour automatique** via GitHub (repo public)
 - Fenêtre custom (sans décorations OS), entièrement redimensionnable
 - Figé temporaire : maintenir **Ctrl** (seul) pour stopper le refresh de la liste
