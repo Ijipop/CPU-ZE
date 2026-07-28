@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProcessInfo, ProcessTabId } from "../types";
 import { ContextMenu } from "./ContextMenu";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { useToast } from "./Toast";
 
 const SENSITIVE_PROCESS_NAMES = new Set([
   "explorer.exe",
@@ -45,7 +47,9 @@ export function ProcessTable({
   metricsNote,
   onKill,
 }: ProcessTableProps) {
+  const toast = useToast();
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [pendingKill, setPendingKill] = useState<ProcessInfo | null>(null);
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
 
@@ -70,23 +74,32 @@ export function ProcessTable({
     setMenu(null);
   }, [tab]);
 
-  const handleKill = async (process: ProcessInfo) => {
-    const sensitive = SENSITIVE_PROCESS_NAMES.has(process.name.toLowerCase());
-    const message = sensitive
-      ? `Attention : « ${process.name} » (PID ${process.pid}) est un processus Windows sensible.\n\nLe terminer peut déstabiliser le bureau. Continuer ?`
-      : `Terminer « ${process.name} » (PID ${process.pid}) ?`;
-    const ok = window.confirm(message);
-    if (!ok) return;
+  const requestKill = (process: ProcessInfo) => {
+    setMenu(null);
+    setPendingKill(process);
+  };
+
+  const confirmKill = async () => {
+    const process = pendingKill;
+    setPendingKill(null);
+    if (!process) return;
     setKilling(process.pid);
     setKillError(null);
     try {
       await onKill(process.pid);
+      toast.push(`« ${process.name} » terminé`, "ok");
     } catch (e) {
-      setKillError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setKillError(msg);
+      toast.push(msg, "err");
     } finally {
       setKilling(null);
     }
   };
+
+  const sensitive = pendingKill
+    ? SENSITIVE_PROCESS_NAMES.has(pendingKill.name.toLowerCase())
+    : false;
 
   return (
     <div className={`table-shell ${frozen ? "is-frozen" : ""}`}>
@@ -127,7 +140,10 @@ export function ProcessTable({
             <tr>
               <th className="col-name">Nom</th>
               <th className="col-pid">PID</th>
-              <th className="col-cpu" title="% du CPU total — même formule que le Gestionnaire des tâches (Processes)">
+              <th
+                className="col-cpu"
+                title="% du CPU total — même formule que le Gestionnaire des tâches (Processes)"
+              >
                 CPU %
               </th>
               <th
@@ -197,7 +213,9 @@ export function ProcessTable({
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={4} className="empty-row">
-                  Aucun processus trouvé
+                  {filter.trim()
+                    ? `Aucun résultat pour « ${filter.trim()} »`
+                    : "Aucun processus trouvé"}
                 </td>
               </tr>
             )}
@@ -211,7 +229,22 @@ export function ProcessTable({
           y={menu.y}
           processName={menu.process.name}
           onClose={() => setMenu(null)}
-          onKill={() => void handleKill(menu.process)}
+          onKill={() => requestKill(menu.process)}
+        />
+      )}
+
+      {pendingKill && (
+        <ConfirmDialog
+          title="Terminer la tâche"
+          message={
+            sensitive
+              ? `« ${pendingKill.name} » (PID ${pendingKill.pid}) est un processus Windows sensible — souvent protégé. Continuer ?`
+              : `Terminer « ${pendingKill.name} » (PID ${pendingKill.pid}) ?`
+          }
+          confirmLabel="Terminer"
+          danger
+          onConfirm={() => void confirmKill()}
+          onCancel={() => setPendingKill(null)}
         />
       )}
     </div>

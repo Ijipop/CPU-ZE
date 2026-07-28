@@ -58,6 +58,8 @@ pub struct SensorReading {
 pub struct TemperatureSnapshot {
     pub cpu: Option<SensorReading>,
     pub gpu: Option<SensorReading>,
+    /// GPU utilization % (0–100) from NVML when available.
+    pub gpu_util: Option<f32>,
 }
 
 const CRITICAL_PROCESS_NAMES: &[&str] = &[
@@ -69,6 +71,8 @@ const CRITICAL_PROCESS_NAMES: &[&str] = &[
     "lsass.exe",
     "winlogon.exe",
     "svchost.exe",
+    "explorer.exe",
+    "dwm.exe",
 ];
 
 fn lock_err(what: &str) -> String {
@@ -207,7 +211,8 @@ pub fn kill_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> 
         return Err("Processus système protégé".into());
     }
 
-    let sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
+    let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
+    refresh_system(&mut sys);
     let target = Pid::from_u32(pid);
 
     match sys.process(target) {
@@ -256,6 +261,13 @@ fn ensure_nvml(nvml_slot: &mut Option<Nvml>) -> Option<&Nvml> {
     nvml_slot.as_ref()
 }
 
+fn read_gpu_utilization(nvml_slot: &mut Option<Nvml>) -> Option<f32> {
+    let nvml = ensure_nvml(nvml_slot)?;
+    let device = nvml.device_by_index(0).ok()?;
+    let rates = device.utilization_rates().ok()?;
+    Some(rates.gpu as f32)
+}
+
 fn read_gpu_temperature(nvml_slot: &mut Option<Nvml>) -> Option<SensorReading> {
     if let Some(nvml) = ensure_nvml(nvml_slot) {
         if let Ok(device) = nvml.device_by_index(0) {
@@ -286,5 +298,6 @@ pub fn get_temperatures(state: State<'_, AppState>) -> Result<TemperatureSnapsho
     Ok(TemperatureSnapshot {
         cpu: read_cpu_temperature(&mut components),
         gpu: read_gpu_temperature(&mut nvml),
+        gpu_util: read_gpu_utilization(&mut nvml),
     })
 }

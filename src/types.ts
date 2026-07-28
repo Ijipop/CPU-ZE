@@ -28,6 +28,7 @@ export interface SensorReading {
 export interface TemperatureSnapshot {
   cpu: SensorReading | null;
   gpu: SensorReading | null;
+  gpuUtil: number | null;
 }
 
 export type ProcessTabId = "cpu" | "ram";

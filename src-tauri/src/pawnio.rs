@@ -367,7 +367,7 @@ pub fn install_driver_elevated() -> Result<(), String> {
         ));
     }
     let path = wide(&setup.to_string_lossy());
-    let args = wide("/S");
+    let args = wide("-install -silent");
     let op = wide("runas");
     let ret = unsafe {
         ShellExecuteW(

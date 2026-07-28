@@ -47,13 +47,21 @@ export function UpdateBanner({
       )}
 
       {(status === "downloading" || status === "installing") && (
-        <div className="update-text">
-          <strong>
-            {status === "downloading" ? "Téléchargement…" : "Installation…"}
-          </strong>
-          {progress !== null && (
-            <span className="mono">{Math.round(progress)}%</span>
-          )}
+        <div className="update-progress-block">
+          <div className="update-text">
+            <strong>
+              {status === "downloading" ? "Téléchargement…" : "Installation…"}
+            </strong>
+            {progress !== null && (
+              <span className="mono">{Math.round(progress)}%</span>
+            )}
+          </div>
+          <div className="update-progress-track" aria-hidden>
+            <div
+              className="update-progress-fill"
+              style={{ width: `${progress ?? (status === "installing" ? 100 : 8)}%` }}
+            />
+          </div>
         </div>
       )}
 

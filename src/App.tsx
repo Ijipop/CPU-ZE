@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getCurrentWindow,
   LogicalPosition,
@@ -12,8 +12,11 @@ import { ProcessTable } from "./components/ProcessTable";
 import { TemperaturePanel } from "./components/TemperaturePanel";
 import { AutostartToggle } from "./components/AutostartToggle";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { TitleBar } from "./components/TitleBar";
+import { TitleBar, loadAppVersion } from "./components/TitleBar";
 import { MiniHud } from "./components/MiniHud";
+import { AboutDialog } from "./components/AboutDialog";
+import { ShortcutsHelp } from "./components/ShortcutsHelp";
+import { ToastProvider } from "./components/Toast";
 import { useProcesses } from "./hooks/useProcesses";
 import { useTemperatures } from "./hooks/useTemperatures";
 import { useCtrlHeld } from "./hooks/useCtrlHeld";
@@ -33,10 +36,13 @@ interface SavedGeometry {
   physical: boolean;
 }
 
-function App() {
+function AppInner() {
   const [tab, setTab] = useState<TabId>("cpu");
   const [compact, setCompact] = useState(false);
   const [processFilter, setProcessFilter] = useState("");
+  const [version, setVersion] = useState("");
+  const [showAbout, setShowAbout] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const saved = useRef<SavedGeometry | null>(null);
   const frozen = useCtrlHeld();
   const { snapshot, error, loading, kill } = useProcesses(1000, frozen && !compact);
@@ -48,6 +54,33 @@ function App() {
     loading: tempLoading,
   } = useTemperatures(tempsInterval, tempsEnabled);
   const updater = useUpdater(true);
+
+  useEffect(() => {
+    void loadAppVersion().then(setVersion);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const typing =
+        tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === "F1" || (e.key === "?" && !typing)) {
+        e.preventDefault();
+        setShowHelp(true);
+        return;
+      }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "1") setTab("cpu");
+      if (e.key === "2") setTab("ram");
+      if (e.key === "3") setTab("temp");
+      if (e.key === "Escape") {
+        setShowHelp(false);
+        setShowAbout(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const enterCompact = useCallback(async () => {
     const win = getCurrentWindow();
@@ -67,7 +100,6 @@ function App() {
       setCompact(true);
     } catch (e) {
       console.error(e);
-      // Do not force compact UI if window APIs failed.
     }
   }, []);
 
@@ -114,7 +146,13 @@ function App() {
       <div className="bg-glow" aria-hidden />
       <div className="bg-grid" aria-hidden />
 
-      <TitleBar compact={compact} onToggleCompact={toggleCompact} />
+      <TitleBar
+        compact={compact}
+        version={version}
+        onToggleCompact={toggleCompact}
+        onOpenHelp={() => setShowHelp(true)}
+        onOpenAbout={() => setShowAbout(true)}
+      />
 
       {compact ? (
         <MiniHud
@@ -123,6 +161,7 @@ function App() {
           totalMemory={snapshot.totalMemory}
           cpuTemp={temps.cpu}
           gpuTemp={temps.gpu}
+          gpuUtil={temps.gpuUtil}
           onExpand={() => void exitCompact()}
         />
       ) : (
@@ -149,6 +188,7 @@ function App() {
             <TemperaturePanel
               cpu={temps.cpu}
               gpu={temps.gpu}
+              gpuUtil={temps.gpuUtil}
               error={tempError}
               loading={tempLoading}
             />
@@ -184,7 +224,20 @@ function App() {
           />
         </>
       )}
+
+      {showAbout && (
+        <AboutDialog version={version || "…"} onClose={() => setShowAbout(false)} />
+      )}
+      {showHelp && <ShortcutsHelp onClose={() => setShowHelp(false)} />}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppInner />
+    </ToastProvider>
   );
 }
 
