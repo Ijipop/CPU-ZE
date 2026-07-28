@@ -1,11 +1,11 @@
 {
-  "version": "0.2.1",
-  "notes": "Placeholder — overwritten by publish script after each release.",
-  "pub_date": "2026-07-28T15:00:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "",
-      "url": "https://api.github.com/repos/Ijipop/CPU-ZE/releases/assets/0"
-    }
-  }
+    "version":  "0.2.2",
+    "notes":  "CPU-ZE v0.2.2",
+    "pub_date":  "2026-07-28T15:31:03Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpQWEVuQ0dpZkpaOWw4U0p3Y0R2aVV4R3g3MDAxcUxlOHEvVFZEKzFqYUNacXN2OFJCVUdOblRpVWg5VDREOFBmSFhjNHNsWXhxenVrQmpPUUc5Y3dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjUyNjI1CWZpbGU6Q1BVLVpFXzAuMi4yX3g2NC1zZXR1cC5leGUKYW94SXFsczcwbjh6Z05DWWhqQS9FcWY3a2FCazRqQS9sS1FwYVVQM0lGeDZMRnlKTjg2ZFVoWUdMSHM1RGJNTitlZnp2ZW16ZXl1ZWpkb0NOZXUvQ1E9PQo=",
+                                             "url":  "https://api.github.com/repos/Ijipop/CPU-ZE/releases/assets/492874527"
+                                         }
+                  }
 }
