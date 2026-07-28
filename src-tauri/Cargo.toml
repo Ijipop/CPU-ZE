@@ -1,6 +1,6 @@
 [package]
 name = "cpu-ze"
-version = "0.3.3"
+version = "0.3.4"
 description = "Mini Task Manager — CPU & RAM"
 authors = ["CPU-ZE"]
 edition = "2021"

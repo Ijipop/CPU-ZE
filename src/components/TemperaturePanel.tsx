@@ -256,8 +256,7 @@ export function TemperaturePanel({
     setInstallMsg(null);
     try {
       await invoke("relaunch_elevated");
-      setInstallMsg("Nouvelle fenêtre Admin lancée — tu peux fermer celle-ci.");
-      toast.push("CPU-ZE relancé en Admin", "ok");
+      setInstallMsg("Valide l’UAC — cette fenêtre se fermera toute seule.");
     } catch (e) {
       setInstallMsg(e instanceof Error ? e.message : String(e));
     } finally {

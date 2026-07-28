@@ -1,10 +1,12 @@
 mod commands;
+mod elevated_autostart;
 mod pawnio;
 mod precision;
 mod temps;
 mod win_metrics;
 
 use commands::{
+    elevated_autostart_disable, elevated_autostart_enable, elevated_autostart_is_enabled,
     get_temperatures, install_pawnio, kill_process, list_processes, pawnio_status,
     relaunch_elevated, AppState,
 };
@@ -16,6 +18,9 @@ use win_metrics::SystemCpuTracker;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Close the previous non-admin instance after a successful UAC relaunch.
+    crate::pawnio::maybe_handoff_previous_instance();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
@@ -36,7 +41,10 @@ pub fn run() {
             get_temperatures,
             pawnio_status,
             install_pawnio,
-            relaunch_elevated
+            relaunch_elevated,
+            elevated_autostart_is_enabled,
+            elevated_autostart_enable,
+            elevated_autostart_disable
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

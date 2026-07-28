@@ -259,6 +259,21 @@ pub fn relaunch_elevated() -> Result<(), String> {
     crate::pawnio::relaunch_elevated()
 }
 
+#[tauri::command]
+pub fn elevated_autostart_is_enabled() -> bool {
+    crate::elevated_autostart::is_enabled()
+}
+
+#[tauri::command]
+pub fn elevated_autostart_enable() -> Result<(), String> {
+    crate::elevated_autostart::enable()
+}
+
+#[tauri::command]
+pub fn elevated_autostart_disable() -> Result<(), String> {
+    crate::elevated_autostart::disable()
+}
+
 fn ensure_nvml(nvml_slot: &mut Option<Nvml>) -> Option<&Nvml> {
     if nvml_slot.is_none() {
         *nvml_slot = Nvml::init().ok();

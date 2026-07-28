@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { invoke } from "@tauri-apps/api/core";
+import { disable as disablePluginAutostart } from "@tauri-apps/plugin-autostart";
 import { UpdateCheckButton } from "./UpdateCheckButton";
 import type { UpdateStatus } from "../hooks/useUpdater";
 
@@ -19,7 +20,7 @@ export function AutostartToggle({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void isEnabled()
+    void invoke<boolean>("elevated_autostart_is_enabled")
       .then(setEnabled)
       .catch((e) => setError(String(e)));
   }, []);
@@ -29,14 +30,26 @@ export function AutostartToggle({
     setError(null);
     try {
       if (enabled) {
-        await disable();
+        await invoke("elevated_autostart_disable");
         setEnabled(false);
       } else {
-        await enable();
+        // Avoid double-start with the old non-elevated Run key.
+        try {
+          await disablePluginAutostart();
+        } catch {
+          /* ignore if not registered */
+        }
+        await invoke("elevated_autostart_enable");
         setEnabled(true);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      // Re-sync in case UAC was cancelled mid-flight.
+      try {
+        setEnabled(await invoke<boolean>("elevated_autostart_is_enabled"));
+      } catch {
+        /* ignore */
+      }
     } finally {
       setBusy(false);
     }
@@ -52,10 +65,12 @@ export function AutostartToggle({
             disabled={busy}
             onChange={() => void toggle()}
           />
-          <span>Ouvrir au démarrage de Windows</span>
+          <span>Ouvrir au démarrage (Admin)</span>
         </label>
         {error && <span className="footer-error">{error}</span>}
-        <span className="footer-tip">Ctrl = figer · Clic droit → Terminer</span>
+        <span className="footer-tip">
+          Ctrl = figer · Clic droit → Terminer · démarrage élevé = temps CPU sans UAC
+        </span>
       </div>
       <div className="footer-right">
         <UpdateCheckButton
