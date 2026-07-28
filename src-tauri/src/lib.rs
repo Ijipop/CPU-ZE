@@ -5,7 +5,8 @@ mod temps;
 mod win_metrics;
 
 use commands::{
-    get_temperatures, install_pawnio, kill_process, list_processes, pawnio_status, AppState,
+    get_temperatures, install_pawnio, kill_process, list_processes, pawnio_status,
+    relaunch_elevated, AppState,
 };
 use precision::CpuTracker;
 use std::sync::Mutex;
@@ -34,7 +35,8 @@ pub fn run() {
             kill_process,
             get_temperatures,
             pawnio_status,
-            install_pawnio
+            install_pawnio,
+            relaunch_elevated
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

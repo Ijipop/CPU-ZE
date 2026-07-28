@@ -29,8 +29,8 @@ export function AboutDialog({ version, onClose }: AboutDialogProps) {
             <strong>GPU</strong> — NVML (NVIDIA) en priorité, sinon LHM / HWiNFO
           </li>
           <li>
-            <strong>Métriques</strong> — parité Gestionnaire des tâches
-            (GetProcessTimes, Private Working Set)
+            <strong>Métriques</strong> — parité Gestionnaire des tâches :
+            CPU = GetProcessTimes/QPC · RAM = Private Working Set
           </li>
         </ul>
         <p className="modal-footnote">

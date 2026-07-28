@@ -254,6 +254,11 @@ pub fn install_pawnio() -> Result<(), String> {
     crate::pawnio::install_driver_elevated()
 }
 
+#[tauri::command]
+pub fn relaunch_elevated() -> Result<(), String> {
+    crate::pawnio::relaunch_elevated()
+}
+
 fn ensure_nvml(nvml_slot: &mut Option<Nvml>) -> Option<&Nvml> {
     if nvml_slot.is_none() {
         *nvml_slot = Nvml::init().ok();

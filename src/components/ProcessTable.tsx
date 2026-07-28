@@ -15,6 +15,9 @@ const SENSITIVE_PROCESS_NAMES = new Set([
   "runtimebroker.exe",
 ]);
 
+type SortKey = "name" | "pid" | "cpu" | "ram";
+type SortDir = "asc" | "desc";
+
 interface ProcessTableProps {
   processes: ProcessInfo[];
   totalMemory: number;
@@ -22,7 +25,6 @@ interface ProcessTableProps {
   frozen: boolean;
   filter: string;
   onFilterChange: (value: string) => void;
-  metricsNote?: string;
   onKill: (pid: number) => Promise<void>;
 }
 
@@ -37,6 +39,12 @@ function formatRam(mb: number): string {
   return `${mb.toFixed(0)} Mo`;
 }
 
+function defaultSortForTab(tab: ProcessTabId): { key: SortKey; dir: SortDir } {
+  return tab === "cpu"
+    ? { key: "cpu", dir: "desc" }
+    : { key: "ram", dir: "desc" };
+}
+
 export function ProcessTable({
   processes,
   totalMemory,
@@ -44,7 +52,6 @@ export function ProcessTable({
   frozen,
   filter,
   onFilterChange,
-  metricsNote,
   onKill,
 }: ProcessTableProps) {
   const toast = useToast();
@@ -52,14 +59,42 @@ export function ProcessTable({
   const [pendingKill, setPendingKill] = useState<ProcessInfo | null>(null);
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>(() => defaultSortForTab(tab).key);
+  const [sortDir, setSortDir] = useState<SortDir>(() => defaultSortForTab(tab).dir);
+
+  useEffect(() => {
+    const d = defaultSortForTab(tab);
+    setSortKey(d.key);
+    setSortDir(d.dir);
+    setMenu(null);
+  }, [tab]);
 
   const sorted = useMemo(() => {
     const list = [...processes];
-    if (tab === "cpu") {
-      list.sort((a, b) => b.cpu - a.cpu || b.memoryBytes - a.memoryBytes);
-    } else {
-      list.sort((a, b) => b.memoryBytes - a.memoryBytes || b.cpu - a.cpu);
-    }
+    const dir = sortDir === "asc" ? 1 : -1;
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name":
+          cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          break;
+        case "pid":
+          cmp = a.pid - b.pid;
+          break;
+        case "cpu":
+          cmp = a.cpu - b.cpu;
+          break;
+        case "ram":
+          cmp = a.memoryBytes - b.memoryBytes;
+          break;
+      }
+      if (cmp === 0) {
+        // Stable-ish tie-breaker
+        cmp = b.cpu - a.cpu || b.memoryBytes - a.memoryBytes;
+        return cmp;
+      }
+      return cmp * dir;
+    });
     const q = filter.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
@@ -68,11 +103,21 @@ export function ProcessTable({
         String(p.pid).includes(q) ||
         (p.path?.toLowerCase().includes(q) ?? false),
     );
-  }, [processes, tab, filter]);
+  }, [processes, filter, sortKey, sortDir]);
 
-  useEffect(() => {
-    setMenu(null);
-  }, [tab]);
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  };
+
+  const sortMark = (key: SortKey) => {
+    if (sortKey !== key) return "";
+    return sortDir === "asc" ? " ▲" : " ▼";
+  };
 
   const requestKill = (process: ProcessInfo) => {
     setMenu(null);
@@ -118,11 +163,6 @@ export function ProcessTable({
             Figé · Ctrl
           </span>
         )}
-        {metricsNote && (
-          <span className="metrics-note" title={metricsNote}>
-            {metricsNote}
-          </span>
-        )}
       </div>
 
       {killError && (
@@ -138,19 +178,47 @@ export function ProcessTable({
         <table className="process-table">
           <thead>
             <tr>
-              <th className="col-name">Nom</th>
-              <th className="col-pid">PID</th>
+              <th className="col-name">
+                <button
+                  type="button"
+                  className={`th-sort ${sortKey === "name" ? "is-active" : ""}`}
+                  onClick={() => toggleSort("name")}
+                >
+                  Nom{sortMark("name")}
+                </button>
+              </th>
+              <th className="col-pid">
+                <button
+                  type="button"
+                  className={`th-sort ${sortKey === "pid" ? "is-active" : ""}`}
+                  onClick={() => toggleSort("pid")}
+                >
+                  PID{sortMark("pid")}
+                </button>
+              </th>
               <th
                 className="col-cpu"
                 title="% du CPU total — même formule que le Gestionnaire des tâches (Processes)"
               >
-                CPU %
+                <button
+                  type="button"
+                  className={`th-sort ${sortKey === "cpu" ? "is-active" : ""}`}
+                  onClick={() => toggleSort("cpu")}
+                >
+                  CPU %{sortMark("cpu")}
+                </button>
               </th>
               <th
                 className="col-ram"
                 title="Private Working Set — même métrique que la colonne Mémoire du Gestionnaire des tâches"
               >
-                Mémoire
+                <button
+                  type="button"
+                  className={`th-sort ${sortKey === "ram" ? "is-active" : ""}`}
+                  onClick={() => toggleSort("ram")}
+                >
+                  Mémoire{sortMark("ram")}
+                </button>
               </th>
             </tr>
           </thead>

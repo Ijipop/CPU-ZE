@@ -210,7 +210,6 @@ function AppInner() {
                   frozen={frozen}
                   filter={processFilter}
                   onFilterChange={setProcessFilter}
-                  metricsNote={snapshot.metricsNote}
                   onKill={kill}
                 />
               )}
