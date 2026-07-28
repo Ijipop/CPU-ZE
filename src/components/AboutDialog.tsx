@@ -34,8 +34,9 @@ export function AboutDialog({ version, onClose }: AboutDialogProps) {
           </li>
         </ul>
         <p className="modal-footnote">
-          Driver PawnIO (pawnio.eu) — install Admin one-shot pour les temps CPU
-          bas niveau.
+          Driver PawnIO (pawnio.eu) — lecture des temps CPU en Admin. Coche
+          « Ouvrir au démarrage (Admin) » pour un login élevé sans UAC à chaque
+          fois.
         </p>
         <div className="modal-actions">
           <button type="button" className="modal-btn" onClick={onClose}>

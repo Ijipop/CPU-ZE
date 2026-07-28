@@ -467,17 +467,19 @@ pub fn install_driver_elevated() -> Result<(), String> {
 }
 
 /// Relaunch CPU-ZE elevated so PawnIO device can be opened.
+/// Passes `--elevated-handoff=<pid>` so the new instance closes this one (no double window).
 pub fn relaunch_elevated() -> Result<(), String> {
     let exe = std::env::current_exe()
         .map_err(|e| format!("Impossible de localiser cpu-ze.exe ({e})"))?;
     let path = wide(&exe.to_string_lossy());
+    let args = wide(&format!("--elevated-handoff={}", std::process::id()));
     let op = wide("runas");
     let ret = unsafe {
         ShellExecuteW(
             None,
             PCWSTR(op.as_ptr()),
             PCWSTR(path.as_ptr()),
-            PCWSTR::null(),
+            PCWSTR(args.as_ptr()),
             PCWSTR::null(),
             SW_SHOWNORMAL,
         )
@@ -489,4 +491,33 @@ pub fn relaunch_elevated() -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// If started with `--elevated-handoff=<pid>`, terminate that process (previous non-admin instance).
+pub fn maybe_handoff_previous_instance() {
+    let pid = std::env::args().find_map(|a| {
+        a.strip_prefix("--elevated-handoff=")
+            .and_then(|s| s.parse::<u32>().ok())
+    });
+    let Some(pid) = pid else {
+        return;
+    };
+    if pid == 0 || pid == std::process::id() {
+        return;
+    }
+    terminate_pid(pid);
+}
+
+fn terminate_pid(pid: u32) {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, TerminateProcess, PROCESS_TERMINATE,
+    };
+    unsafe {
+        let Ok(handle) = OpenProcess(PROCESS_TERMINATE, false, pid) else {
+            return;
+        };
+        let _ = TerminateProcess(handle, 0);
+        let _ = CloseHandle(handle);
+    }
 }
