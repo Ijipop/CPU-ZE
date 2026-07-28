@@ -73,6 +73,31 @@ async function clampPosition(
   };
 }
 
+/** Stay on the monitor under `anchor` when resizing (micro ↔ normal). */
+async function stayOnCurrentMonitor(
+  anchorX: number,
+  anchorY: number,
+  width: number,
+  height: number,
+): Promise<PhysicalPos> {
+  const monitors = await availableMonitors();
+  if (monitors.length === 0) return { x: anchorX, y: anchorY };
+
+  const mon =
+    monitors.find((m) => pointOnMonitor(anchorX + 16, anchorY + 16, m)) ??
+    monitors.find((m) => pointOnMonitor(anchorX, anchorY, m)) ??
+    (await primaryMonitor()) ??
+    monitors[0];
+
+  const margin = 8;
+  const maxX = mon.position.x + Math.max(margin, mon.size.width - width - margin);
+  const maxY = mon.position.y + Math.max(margin, mon.size.height - height - margin);
+  return {
+    x: Math.min(Math.max(anchorX, mon.position.x + margin), maxX),
+    y: Math.min(Math.max(anchorY, mon.position.y + margin), maxY),
+  };
+}
+
 function AppInner() {
   const [tab, setTab] = useState<TabId>("cpu");
   const [compact, setCompact] = useState(false);
@@ -214,18 +239,20 @@ function AppInner() {
       normalGeom.current = g;
       saveNormalGeom(g);
 
-      const target = compactPos.current ?? { x: pos.x, y: pos.y };
-      const clamped = await clampPosition(
-        target.x,
-        target.y,
+      // Resize in place — never jump to another monitor's saved compact pos.
+      const stay = await stayOnCurrentMonitor(
+        pos.x,
+        pos.y,
         COMPACT_SIZE.width,
         COMPACT_SIZE.height,
       );
 
       await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
       await win.setSize(new LogicalSize(COMPACT_SIZE.width, COMPACT_SIZE.height));
-      await win.setPosition(new PhysicalPosition(clamped.x, clamped.y));
+      await win.setPosition(new PhysicalPosition(stay.x, stay.y));
       await win.setAlwaysOnTop(true);
+      compactPos.current = stay;
+      saveCompactPos(stay);
       compactRef.current = true;
       setCompact(true);
     } catch (e) {
@@ -247,13 +274,18 @@ function AppInner() {
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
 
       const g = normalGeom.current;
+      const width = g?.width ?? 980;
+      const height = g?.height ?? 680;
+      // Restore size only; keep the current screen.
+      const stay = await stayOnCurrentMonitor(pos.x, pos.y, width, height);
       if (g) {
-        const clamped = await clampPosition(g.x, g.y, g.width, g.height);
-        await win.setSize(new PhysicalSize(g.width, g.height));
-        await win.setPosition(new PhysicalPosition(clamped.x, clamped.y));
+        await win.setSize(new PhysicalSize(width, height));
       } else {
         await win.setSize(new LogicalSize(980, 680));
       }
+      await win.setPosition(new PhysicalPosition(stay.x, stay.y));
+      normalGeom.current = { x: stay.x, y: stay.y, width, height };
+      saveNormalGeom(normalGeom.current);
       compactRef.current = false;
       setCompact(false);
     } catch (e) {
