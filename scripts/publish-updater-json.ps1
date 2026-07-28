@@ -26,9 +26,19 @@ $assetUrl = if ($nsis.browser_download_url) {
 }
 $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
+$notes = if ($release.body -and $release.body.Trim().Length -gt 0) {
+  $release.body.Trim()
+} else {
+  "CPU-ZE v$version"
+}
+# Keep JSON reasonable for the in-app dialog.
+if ($notes.Length -gt 4000) {
+  $notes = $notes.Substring(0, 4000).Trim() + "`n…"
+}
+
 $obj = [ordered]@{
   version = $version
-  notes = "CPU-ZE v$version"
+  notes = $notes
   pub_date = $pubDate
   platforms = [ordered]@{
     "windows-x86_64" = [ordered]@{

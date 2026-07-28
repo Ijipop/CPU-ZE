@@ -13,6 +13,7 @@ import { ProcessTabs } from "./components/ProcessTabs";
 import { ProcessTable } from "./components/ProcessTable";
 import { TemperaturePanel } from "./components/TemperaturePanel";
 import { AutostartToggle } from "./components/AutostartToggle";
+import { UpdateDialog } from "./components/UpdateDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TitleBar, loadAppVersion } from "./components/TitleBar";
 import { MiniHud } from "./components/MiniHud";
@@ -39,19 +40,29 @@ import "./styles.css";
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 120 };
 const COMPACT_SIZE = { width: 320, height: 150 };
-/** Soft but snappy window morph (~1 soft beat). */
-const MORPH_RESIZE_MS = 170;
+/** Outer window morph — content is veiled, so a soft desktop resize is fine. */
+const MORPH_RESIZE_MS = 200;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Soft landing in a short window — quick, never abrupt. */
-function easeOutQuint(t: number): number {
-  return 1 - Math.pow(1 - t, 5);
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
 
-/** Animate outer bounds (physical px). Soft ease-out, capped IPC rate. */
+function waitMs(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+/** Animate outer bounds. Prefer keeping top-left fixed to avoid ghost trails. */
 function animateWindowBounds(
   win: ReturnType<typeof getCurrentWindow>,
   from: PhysicalGeom,
@@ -94,13 +105,14 @@ function animateWindowBounds(
 
     const frame = (now: number) => {
       const t = Math.min(1, (now - t0) / durationMs);
-      const e = easeOutQuint(t);
+      const e = easeOutCubic(t);
       const w = Math.round(from.width + (to.width - from.width) * e);
       const h = Math.round(from.height + (to.height - from.height) * e);
+      // Keep origin stable unless clamp moved it — lerp only if needed.
       const x = Math.round(from.x + (to.x - from.x) * e);
       const y = Math.round(from.y + (to.y - from.y) * e);
       const done = t >= 1;
-      if (done || now - lastApply >= 12) {
+      if (done || now - lastApply >= 16) {
         lastApply = now;
         apply(w, h, x, y, done);
       }
@@ -309,6 +321,7 @@ function AppInner() {
       morphingRef.current = true;
       setMorphing(true);
       skipPersist.current = true;
+      await nextPaint();
 
       const size = await win.outerSize();
       const pos = await win.outerPosition();
@@ -319,19 +332,21 @@ function AppInner() {
       const sf = await win.scaleFactor();
       const targetW = Math.round(COMPACT_SIZE.width * sf);
       const targetH = Math.round(COMPACT_SIZE.height * sf);
+      // Prefer same top-left — only nudge if the shrunk window would clip.
       const stay = await stayOnCurrentMonitor(pos.x, pos.y, targetW, targetH);
       const from = g;
       const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
 
-      // Fade + resize in parallel (no dead wait).
-      void win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-      void win.setAlwaysOnTop(true);
-      compactPos.current = stay;
-      saveCompactPos(stay);
+      await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
+      await win.setAlwaysOnTop(true);
+      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
+
+      compactPos.current = { x: to.x, y: to.y };
+      saveCompactPos(compactPos.current);
       compactRef.current = true;
       setCompact(true);
-
-      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
+      await nextPaint();
+      await waitMs(reduced ? 0 : 40);
     } catch (e) {
       console.error(e);
     } finally {
@@ -349,6 +364,7 @@ function AppInner() {
       morphingRef.current = true;
       setMorphing(true);
       skipPersist.current = true;
+      await nextPaint();
 
       const size = await win.outerSize();
       const pos = await win.outerPosition();
@@ -367,11 +383,9 @@ function AppInner() {
       };
       const to = { x: stay.x, y: stay.y, width, height };
 
-      // Keep compact min during grow — raising NORMAL_MIN early snaps the
-      // window and leaves a “ghost” outline of the micro box.
-      void win.setAlwaysOnTop(false);
-      void win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-
+      // Never raise NORMAL_MIN before grow — that snaps and ghosts the micro frame.
+      await win.setAlwaysOnTop(false);
+      await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
       await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
 
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
@@ -379,6 +393,8 @@ function AppInner() {
       setCompact(false);
       normalGeom.current = to;
       saveNormalGeom(to);
+      await nextPaint();
+      await waitMs(reduced ? 0 : 40);
     } catch (e) {
       console.error(e);
       compactRef.current = false;
@@ -439,6 +455,7 @@ function AppInner() {
     <div
       className={`app ${compact ? "app-compact" : ""} ${morphing ? "is-morphing" : ""}`}
     >
+      {morphing && <div className="morph-veil" aria-hidden />}
       <div className="bg-glow" aria-hidden />
       <div className="bg-grid" aria-hidden />
 
@@ -470,6 +487,7 @@ function AppInner() {
               error={updater.error}
               onInstall={() => void updater.install()}
               onDismiss={updater.dismiss}
+              suppressAvailable={updater.promptOpen}
             />
 
             <HeaderStats
@@ -524,6 +542,16 @@ function AppInner() {
         )}
       </div>
 
+      {updater.promptOpen && updater.update && (
+        <UpdateDialog
+          status={updater.status}
+          update={updater.update}
+          progress={updater.progress}
+          error={updater.error}
+          onInstall={() => void updater.install()}
+          onLater={updater.dismissLater}
+        />
+      )}
       {showAbout && (
         <AboutDialog version={version || "…"} onClose={() => setShowAbout(false)} />
       )}
