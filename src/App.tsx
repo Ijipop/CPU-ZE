@@ -39,6 +39,75 @@ import "./styles.css";
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 120 };
 const COMPACT_SIZE = { width: 320, height: 150 };
+/** Content fade-out before the window starts morphing. */
+const MORPH_FADE_OUT_MS = 90;
+/** Window resize duration (ease-out). */
+const MORPH_RESIZE_MS = 280;
+/** Tiny beat before fading content back in. */
+const MORPH_SETTLE_MS = 40;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Soft landing — fast start, gentle finish (feels more “native”). */
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function waitMs(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** Animate outer bounds (physical px). Caps IPC rate to keep the morph fluid. */
+function animateWindowBounds(
+  win: ReturnType<typeof getCurrentWindow>,
+  from: PhysicalGeom,
+  to: PhysicalGeom,
+  durationMs: number,
+): Promise<void> {
+  if (durationMs <= 0) {
+    return Promise.all([
+      win.setSize(new PhysicalSize(to.width, to.height)),
+      win.setPosition(new PhysicalPosition(to.x, to.y)),
+    ]).then(() => undefined);
+  }
+
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    let lastApply = 0;
+    let inflight = false;
+
+    const apply = (w: number, h: number, x: number, y: number, done: boolean) => {
+      if (inflight && !done) return;
+      inflight = true;
+      void Promise.all([
+        win.setSize(new PhysicalSize(Math.max(1, w), Math.max(1, h))),
+        win.setPosition(new PhysicalPosition(x, y)),
+      ]).finally(() => {
+        inflight = false;
+        if (done) resolve();
+      });
+    };
+
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - t0) / durationMs);
+      const e = easeOutCubic(t);
+      const w = Math.round(from.width + (to.width - from.width) * e);
+      const h = Math.round(from.height + (to.height - from.height) * e);
+      const x = Math.round(from.x + (to.x - from.x) * e);
+      const y = Math.round(from.y + (to.y - from.y) * e);
+      const done = t >= 1;
+      if (done || now - lastApply >= 16) {
+        lastApply = now;
+        apply(w, h, x, y, done);
+      }
+      if (!done) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+}
 
 function pointOnMonitor(x: number, y: number, m: Monitor): boolean {
   const px = m.position.x;
@@ -107,9 +176,11 @@ function AppInner() {
   const [showAbout, setShowAbout] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [geomReady, setGeomReady] = useState(false);
+  const [morphing, setMorphing] = useState(false);
   const normalGeom = useRef<PhysicalGeom | null>(loadNormalGeom());
   const compactPos = useRef<PhysicalPos | null>(loadCompactPos());
   const compactRef = useRef(false);
+  const morphingRef = useRef(false);
   const skipPersist = useRef(false);
   const frozen = useCtrlHeld();
   const { snapshot, error, loading, kill } = useProcesses(1000, frozen && !compact);
@@ -230,74 +301,95 @@ function AppInner() {
   }, []);
 
   const enterCompact = useCallback(async () => {
+    if (morphingRef.current || compactRef.current) return;
     const win = getCurrentWindow();
+    const reduced = prefersReducedMotion();
     try {
+      morphingRef.current = true;
+      setMorphing(true);
       skipPersist.current = true;
+
       const size = await win.outerSize();
       const pos = await win.outerPosition();
       const g = { x: pos.x, y: pos.y, width: size.width, height: size.height };
       normalGeom.current = g;
       saveNormalGeom(g);
 
-      // Resize in place — never jump to another monitor's saved compact pos.
-      const stay = await stayOnCurrentMonitor(
-        pos.x,
-        pos.y,
-        COMPACT_SIZE.width,
-        COMPACT_SIZE.height,
-      );
+      const sf = await win.scaleFactor();
+      const targetW = Math.round(COMPACT_SIZE.width * sf);
+      const targetH = Math.round(COMPACT_SIZE.height * sf);
+      const stay = await stayOnCurrentMonitor(pos.x, pos.y, targetW, targetH);
+      const from = g;
+      const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
 
+      await waitMs(reduced ? 0 : MORPH_FADE_OUT_MS);
       await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-      await win.setSize(new LogicalSize(COMPACT_SIZE.width, COMPACT_SIZE.height));
-      await win.setPosition(new PhysicalPosition(stay.x, stay.y));
       await win.setAlwaysOnTop(true);
       compactPos.current = stay;
       saveCompactPos(stay);
       compactRef.current = true;
       setCompact(true);
+
+      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
+      await waitMs(reduced ? 0 : MORPH_SETTLE_MS);
     } catch (e) {
       console.error(e);
     } finally {
       skipPersist.current = false;
+      setMorphing(false);
+      morphingRef.current = false;
     }
   }, []);
 
   const exitCompact = useCallback(async () => {
+    if (morphingRef.current || !compactRef.current) return;
     const win = getCurrentWindow();
+    const reduced = prefersReducedMotion();
     try {
+      morphingRef.current = true;
+      setMorphing(true);
       skipPersist.current = true;
+
+      const size = await win.outerSize();
       const pos = await win.outerPosition();
       compactPos.current = { x: pos.x, y: pos.y };
       saveCompactPos(compactPos.current);
 
+      const g = normalGeom.current;
+      const width = g?.width ?? Math.round(980 * (await win.scaleFactor()));
+      const height = g?.height ?? Math.round(680 * (await win.scaleFactor()));
+      const stay = await stayOnCurrentMonitor(pos.x, pos.y, width, height);
+      const from = {
+        x: pos.x,
+        y: pos.y,
+        width: size.width,
+        height: size.height,
+      };
+      const to = { x: stay.x, y: stay.y, width, height };
+
+      await waitMs(reduced ? 0 : MORPH_FADE_OUT_MS);
       await win.setAlwaysOnTop(false);
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
-
-      const g = normalGeom.current;
-      const width = g?.width ?? 980;
-      const height = g?.height ?? 680;
-      // Restore size only; keep the current screen.
-      const stay = await stayOnCurrentMonitor(pos.x, pos.y, width, height);
-      if (g) {
-        await win.setSize(new PhysicalSize(width, height));
-      } else {
-        await win.setSize(new LogicalSize(980, 680));
-      }
-      await win.setPosition(new PhysicalPosition(stay.x, stay.y));
-      normalGeom.current = { x: stay.x, y: stay.y, width, height };
-      saveNormalGeom(normalGeom.current);
       compactRef.current = false;
       setCompact(false);
+
+      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
+      await waitMs(reduced ? 0 : MORPH_SETTLE_MS);
+      normalGeom.current = to;
+      saveNormalGeom(to);
     } catch (e) {
       console.error(e);
       compactRef.current = false;
       setCompact(false);
     } finally {
       skipPersist.current = false;
+      setMorphing(false);
+      morphingRef.current = false;
     }
   }, []);
 
   const toggleCompact = useCallback(() => {
+    if (morphingRef.current) return;
     if (compact) void exitCompact();
     else void enterCompact();
   }, [compact, enterCompact, exitCompact]);
@@ -342,7 +434,9 @@ function AppInner() {
   const processTab: ProcessTabId = tab === "ram" ? "ram" : "cpu";
 
   return (
-    <div className={`app ${compact ? "app-compact" : ""}`}>
+    <div
+      className={`app ${compact ? "app-compact" : ""} ${morphing ? "is-morphing" : ""}`}
+    >
       <div className="bg-glow" aria-hidden />
       <div className="bg-grid" aria-hidden />
 
@@ -354,77 +448,79 @@ function AppInner() {
         onOpenAbout={() => setShowAbout(true)}
       />
 
-      {compact ? (
-        <MiniHud
-          totalCpu={snapshot.totalCpu}
-          usedMemory={snapshot.usedMemory}
-          totalMemory={snapshot.totalMemory}
-          cpuTemp={temps.cpu}
-          gpuTemp={temps.gpu}
-          gpuUtil={temps.gpuUtil}
-          onExpand={() => void exitCompact()}
-        />
-      ) : (
-        <>
-          <UpdateBanner
-            status={updater.status}
-            update={updater.update}
-            progress={updater.progress}
-            error={updater.error}
-            onInstall={() => void updater.install()}
-            onDismiss={updater.dismiss}
-          />
-
-          <HeaderStats
+      <div className="app-body">
+        {compact ? (
+          <MiniHud
             totalCpu={snapshot.totalCpu}
             usedMemory={snapshot.usedMemory}
             totalMemory={snapshot.totalMemory}
-            processCount={snapshot.processes.length}
+            cpuTemp={temps.cpu}
+            gpuTemp={temps.gpu}
+            gpuUtil={temps.gpuUtil}
+            onExpand={() => void exitCompact()}
           />
-
-          <ProcessTabs active={tab} onChange={setTab} />
-
-          {tab === "temp" ? (
-            <TemperaturePanel
-              cpu={temps.cpu}
-              gpu={temps.gpu}
-              gpuUtil={temps.gpuUtil}
-              error={tempError}
-              loading={tempLoading}
+        ) : (
+          <>
+            <UpdateBanner
+              status={updater.status}
+              update={updater.update}
+              progress={updater.progress}
+              error={updater.error}
+              onInstall={() => void updater.install()}
+              onDismiss={updater.dismiss}
             />
-          ) : (
-            <>
-              {error && (
-                <div className="banner-error" role="alert">
-                  {error}
-                </div>
-              )}
 
-              {loading && snapshot.processes.length === 0 ? (
-                <div className="loading">Chargement des processus…</div>
-              ) : (
-                <ProcessTable
-                  processes={snapshot.processes}
-                  totalMemory={snapshot.totalMemory}
-                  tab={processTab}
-                  frozen={frozen}
-                  filter={processFilter}
-                  onFilterChange={setProcessFilter}
-                  onKill={kill}
-                />
-              )}
-            </>
-          )}
+            <HeaderStats
+              totalCpu={snapshot.totalCpu}
+              usedMemory={snapshot.usedMemory}
+              totalMemory={snapshot.totalMemory}
+              processCount={snapshot.processes.length}
+            />
 
-          <AutostartToggle
-            updateStatus={updater.status}
-            updateMessage={updater.message}
-            onCheckUpdate={() => void updater.checkNow()}
-            startCompact={startCompact}
-            onToggleStartCompact={onToggleStartCompact}
-          />
-        </>
-      )}
+            <ProcessTabs active={tab} onChange={setTab} />
+
+            {tab === "temp" ? (
+              <TemperaturePanel
+                cpu={temps.cpu}
+                gpu={temps.gpu}
+                gpuUtil={temps.gpuUtil}
+                error={tempError}
+                loading={tempLoading}
+              />
+            ) : (
+              <>
+                {error && (
+                  <div className="banner-error" role="alert">
+                    {error}
+                  </div>
+                )}
+
+                {loading && snapshot.processes.length === 0 ? (
+                  <div className="loading">Chargement des processus…</div>
+                ) : (
+                  <ProcessTable
+                    processes={snapshot.processes}
+                    totalMemory={snapshot.totalMemory}
+                    tab={processTab}
+                    frozen={frozen}
+                    filter={processFilter}
+                    onFilterChange={setProcessFilter}
+                    onKill={kill}
+                  />
+                )}
+              </>
+            )}
+
+            <AutostartToggle
+              updateStatus={updater.status}
+              updateMessage={updater.message}
+              onCheckUpdate={() => void updater.checkNow()}
+              startCompact={startCompact}
+              onToggleStartCompact={onToggleStartCompact}
+            />
+          </>
+        )}
+      </div>
 
       {showAbout && (
         <AboutDialog version={version || "…"} onClose={() => setShowAbout(false)} />
