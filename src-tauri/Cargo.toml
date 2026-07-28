@@ -1,0 +1,25 @@
+[package]
+name = "cpu-ze"
+version = "0.1.0"
+description = "Mini Task Manager — CPU & RAM"
+authors = ["CPU-ZE"]
+edition = "2021"
+
+[lib]
+name = "cpu_ze_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.38.4"
+tauri-plugin-autostart = "2.5.1"
+nvml-wrapper = "0.12.1"
+tauri-plugin-updater = "2.10.1"
+tauri-plugin-process = "2.3.1"
+

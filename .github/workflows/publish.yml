@@ -1,0 +1,59 @@
+name: publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+    tags:
+      - "v*"
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "CPU-ZE v__VERSION__"
+          releaseBody: |
+            Mini Task Manager Windows — CPU, RAM, températures.
+
+            L'app vérifie automatiquement `latest.json` sur cette release pour proposer une mise à jour.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          updaterJsonPreferNsis: true
