@@ -23,12 +23,7 @@ export function HeaderStats({
   const cpuPct = Math.min(100, Math.max(0, totalCpu));
 
   return (
-    <header className="header">
-      <div className="brand-block">
-        <h1 className="brand">CPU-ZE</h1>
-        <p className="brand-sub">Mini Task Manager</p>
-      </div>
-
+    <header className="header header-metrics-only">
       <div className="metrics">
         <div className="metric">
           <div className="metric-top">

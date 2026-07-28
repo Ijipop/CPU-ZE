@@ -2,10 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProcessInfo, ProcessTabId } from "../types";
 import { ContextMenu } from "./ContextMenu";
 
+const SENSITIVE_PROCESS_NAMES = new Set([
+  "explorer.exe",
+  "dwm.exe",
+  "taskmgr.exe",
+  "sihost.exe",
+  "shellhost.exe",
+  "startmenuexperiencehost.exe",
+  "searchhost.exe",
+  "runtimebroker.exe",
+]);
+
 interface ProcessTableProps {
   processes: ProcessInfo[];
   totalMemory: number;
   tab: ProcessTabId;
+  frozen: boolean;
+  filter: string;
+  onFilterChange: (value: string) => void;
+  metricsNote?: string;
   onKill: (pid: number) => Promise<void>;
 }
 
@@ -15,23 +30,31 @@ interface MenuState {
   process: ProcessInfo;
 }
 
+function formatRam(mb: number): string {
+  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} Go`;
+  return `${mb.toFixed(0)} Mo`;
+}
+
 export function ProcessTable({
   processes,
   totalMemory,
   tab,
+  frozen,
+  filter,
+  onFilterChange,
+  metricsNote,
   onKill,
 }: ProcessTableProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
-  const [filter, setFilter] = useState("");
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
 
   const sorted = useMemo(() => {
     const list = [...processes];
     if (tab === "cpu") {
-      list.sort((a, b) => b.cpu - a.cpu);
+      list.sort((a, b) => b.cpu - a.cpu || b.memoryBytes - a.memoryBytes);
     } else {
-      list.sort((a, b) => b.memoryBytes - a.memoryBytes);
+      list.sort((a, b) => b.memoryBytes - a.memoryBytes || b.cpu - a.cpu);
     }
     const q = filter.trim().toLowerCase();
     if (!q) return list;
@@ -48,9 +71,11 @@ export function ProcessTable({
   }, [tab]);
 
   const handleKill = async (process: ProcessInfo) => {
-    const ok = window.confirm(
-      `Terminer « ${process.name} » (PID ${process.pid}) ?`,
-    );
+    const sensitive = SENSITIVE_PROCESS_NAMES.has(process.name.toLowerCase());
+    const message = sensitive
+      ? `Attention : « ${process.name} » (PID ${process.pid}) est un processus Windows sensible.\n\nLe terminer peut déstabiliser le bureau. Continuer ?`
+      : `Terminer « ${process.name} » (PID ${process.pid}) ?`;
+    const ok = window.confirm(message);
     if (!ok) return;
     setKilling(process.pid);
     setKillError(null);
@@ -64,17 +89,27 @@ export function ProcessTable({
   };
 
   return (
-    <div className="table-shell">
+    <div className={`table-shell ${frozen ? "is-frozen" : ""}`}>
       <div className="table-toolbar">
         <input
           className="search"
           type="search"
           placeholder="Filtrer par nom, PID…"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          onChange={(e) => onFilterChange(e.target.value)}
           aria-label="Filtrer les processus"
         />
         <span className="table-hint mono">{sorted.length} affichés</span>
+        {frozen && (
+          <span className="freeze-badge" title="Relâche Ctrl pour reprendre">
+            Figé · Ctrl
+          </span>
+        )}
+        {metricsNote && (
+          <span className="metrics-note" title={metricsNote}>
+            {metricsNote}
+          </span>
+        )}
       </div>
 
       {killError && (
@@ -92,8 +127,15 @@ export function ProcessTable({
             <tr>
               <th className="col-name">Nom</th>
               <th className="col-pid">PID</th>
-              <th className="col-cpu">CPU</th>
-              <th className="col-ram">RAM</th>
+              <th className="col-cpu" title="% du CPU total — même formule que le Gestionnaire des tâches (Processes)">
+                CPU %
+              </th>
+              <th
+                className="col-ram"
+                title="Octets privés (Private Bytes) — différent de la colonne Mémoire du Gestionnaire des tâches"
+              >
+                RAM privée
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -140,10 +182,12 @@ export function ProcessTable({
                           style={{ width: `${Math.max(ramPct, 0.5)}%` }}
                         />
                       </div>
-                      <span className="mono cell-num">
-                        {p.memoryMb >= 1024
-                          ? `${(p.memoryMb / 1024).toFixed(2)} Go`
-                          : `${p.memoryMb.toFixed(0)} Mo`}
+                      <span
+                        className="mono cell-num cell-num-ram"
+                        title={`${ramPct.toFixed(2)}% de la RAM`}
+                      >
+                        {formatRam(p.memoryMb)}
+                        <span className="ram-pct"> {ramPct.toFixed(1)}%</span>
                       </span>
                     </div>
                   </td>
