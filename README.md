@@ -21,20 +21,21 @@ Mini Task Manager Windows — léger, rapide, et soigné.
 - **RAM processus** : **Private Working Set** (`PROCESS_MEMORY_COUNTERS_EX2`) — colonne Mémoire TM
 - **RAM système** : `GlobalMemoryStatusEx` (`TotalPhys − AvailPhys`)
 - **Températures** :
-  1. **LibreHardwareMonitor** (`http://127.0.0.1:8085/data.json`) — recommandé sur Ryzen
-  2. HWiNFO (mémoire partagée) — fallback optionnel
-  3. ACPI (scoré, uniquement si le label ressemble à un CPU)
+  1. **PawnIO** (driver noyau embarqué) — **recommandé**, un clic Admin une seule fois
+  2. LibreHardwareMonitor (`http://127.0.0.1:8085/data.json`) — fallback
+  3. HWiNFO (mémoire partagée) — fallback optionnel
+  4. ACPI (scoré, uniquement si le label ressemble à un CPU)
   - GPU : NVML (NVIDIA) en priorité, sinon LHM / HWiNFO
 
-### LibreHardwareMonitor (temp CPU)
+### Capteurs CPU (PawnIO)
 
-Sur beaucoup de PC AMD, ACPI n’expose pas la temp CPU. Avec LHM :
+Sur beaucoup de PC (surtout AMD Ryzen), Windows n’expose pas la temp CPU en user-mode. CPU-ZE embarque les modules PawnIO + l’installateur signé :
 
-1. Télécharge [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
-2. **Options → Remote Web Server → Start** (port **8085**)
-3. Laisse LHM ouvert (réduit dans la barre système OK)
+1. Onglet **Temp** → **Activer les capteurs CPU**
+2. Valide l’UAC (une fois)
+3. Les temps Tctl / Package apparaissent sans LHM ni HWiNFO
 
-Utile pour suivre **max / moyenne** sous la même charge (ex. savoir si la pâte thermique se dégrade).
+[PawnIO](https://pawnio.eu/) est le même driver utilisé par LibreHardwareMonitor. LHM / HWiNFO restent des fallbacks si tu les as déjà.
 
 ## Prérequis (dev)
 
@@ -89,4 +90,4 @@ Secrets GitHub (CI) :
 
 ## Stack
 
-Tauri 2 · React · TypeScript · sysinfo · Win32 metrics · NVML · LibreHardwareMonitor · tauri-plugin-updater
+Tauri 2 · React · TypeScript · sysinfo · Win32 metrics · NVML · PawnIO · LibreHardwareMonitor · tauri-plugin-updater

@@ -1,9 +1,12 @@
 mod commands;
+mod pawnio;
 mod precision;
 mod temps;
 mod win_metrics;
 
-use commands::{get_temperatures, kill_process, list_processes, AppState};
+use commands::{
+    get_temperatures, install_pawnio, kill_process, list_processes, pawnio_status, AppState,
+};
 use precision::CpuTracker;
 use std::sync::Mutex;
 use sysinfo::{Components, System};
@@ -22,8 +25,6 @@ pub fn run() {
             .expect("updater Authorization header")
             .header("User-Agent", "CPU-ZE")
             .expect("updater User-Agent header");
-        // Do NOT set Accept here: check() defaults to application/json (Contents raw
-        // is set from the frontend), download() defaults to application/octet-stream.
     }
 
     tauri::Builder::default()
@@ -43,7 +44,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_processes,
             kill_process,
-            get_temperatures
+            get_temperatures,
+            pawnio_status,
+            install_pawnio
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
