@@ -73,12 +73,13 @@ function SensorCard({
         <div className="temp-unavailable">{unavailableHint}</div>
       ) : (
         <>
-          <div className="temp-current mono">
-            <span className="temp-current-value">{formatTemp(current)}</span>
-            <span className="temp-current-caption">Actuelle</span>
+          <div className="temp-current-row">
+            <div className="temp-current mono">
+              <span className="temp-current-value">{formatTemp(current)}</span>
+              <span className="temp-current-caption">Actuelle</span>
+            </div>
+            <div className="temp-util-slot">{extra ?? null}</div>
           </div>
-
-          {extra}
 
           <div className="temp-meter" aria-hidden>
             <div
@@ -339,9 +340,7 @@ export function TemperaturePanel({
       )}
 
       <div className="temp-toolbar">
-        <p className="temp-hint">
-          Températures en temps réel — min / moy. / max depuis le dernier reset
-        </p>
+        <p className="temp-hint">Températures en temps réel</p>
         <button
           type="button"
           className="temp-reset"

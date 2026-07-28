@@ -846,7 +846,7 @@ body {
   background: var(--surface);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow);
-  min-height: 220px;
+  min-height: 260px;
   min-width: 0;
   overflow: hidden;
 }
@@ -974,10 +974,28 @@ body {
   line-height: 1.4;
 }
 
+.temp-current-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 3.4rem;
+}
+
 .temp-current {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+}
+
+.temp-util-slot {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .temp-current-value {
@@ -1001,6 +1019,7 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .temp-meter-fill {
@@ -1661,10 +1680,9 @@ body {
 
 .temp-util {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: -4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
 .temp-util-label {
@@ -1680,6 +1698,7 @@ body {
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--accent-2);
+  line-height: 1;
 }
 
 .update-progress-block {
