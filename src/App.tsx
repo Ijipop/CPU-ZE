@@ -39,28 +39,19 @@ import "./styles.css";
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 120 };
 const COMPACT_SIZE = { width: 320, height: 150 };
-/** Content fade-out before the window starts morphing. */
-const MORPH_FADE_OUT_MS = 90;
-/** Window resize duration (ease-out). */
-const MORPH_RESIZE_MS = 280;
-/** Tiny beat before fading content back in. */
-const MORPH_SETTLE_MS = 40;
+/** Soft but snappy window morph (~1 soft beat). */
+const MORPH_RESIZE_MS = 170;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Soft landing — fast start, gentle finish (feels more “native”). */
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
+/** Soft landing in a short window — quick, never abrupt. */
+function easeOutQuint(t: number): number {
+  return 1 - Math.pow(1 - t, 5);
 }
 
-function waitMs(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-/** Animate outer bounds (physical px). Caps IPC rate to keep the morph fluid. */
+/** Animate outer bounds (physical px). Soft ease-out, capped IPC rate. */
 function animateWindowBounds(
   win: ReturnType<typeof getCurrentWindow>,
   from: PhysicalGeom,
@@ -78,28 +69,38 @@ function animateWindowBounds(
     const t0 = performance.now();
     let lastApply = 0;
     let inflight = false;
+    let pending: { w: number; h: number; x: number; y: number; done: boolean } | null =
+      null;
 
-    const apply = (w: number, h: number, x: number, y: number, done: boolean) => {
-      if (inflight && !done) return;
+    const flush = () => {
+      if (inflight || !pending) return;
+      const next = pending;
+      pending = null;
       inflight = true;
       void Promise.all([
-        win.setSize(new PhysicalSize(Math.max(1, w), Math.max(1, h))),
-        win.setPosition(new PhysicalPosition(x, y)),
+        win.setSize(new PhysicalSize(Math.max(1, next.w), Math.max(1, next.h))),
+        win.setPosition(new PhysicalPosition(next.x, next.y)),
       ]).finally(() => {
         inflight = false;
-        if (done) resolve();
+        if (pending) flush();
+        else if (next.done) resolve();
       });
+    };
+
+    const apply = (w: number, h: number, x: number, y: number, done: boolean) => {
+      pending = { w, h, x, y, done };
+      flush();
     };
 
     const frame = (now: number) => {
       const t = Math.min(1, (now - t0) / durationMs);
-      const e = easeOutCubic(t);
+      const e = easeOutQuint(t);
       const w = Math.round(from.width + (to.width - from.width) * e);
       const h = Math.round(from.height + (to.height - from.height) * e);
       const x = Math.round(from.x + (to.x - from.x) * e);
       const y = Math.round(from.y + (to.y - from.y) * e);
       const done = t >= 1;
-      if (done || now - lastApply >= 16) {
+      if (done || now - lastApply >= 12) {
         lastApply = now;
         apply(w, h, x, y, done);
       }
@@ -322,16 +323,15 @@ function AppInner() {
       const from = g;
       const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
 
-      await waitMs(reduced ? 0 : MORPH_FADE_OUT_MS);
-      await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-      await win.setAlwaysOnTop(true);
+      // Fade + resize in parallel (no dead wait).
+      void win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
+      void win.setAlwaysOnTop(true);
       compactPos.current = stay;
       saveCompactPos(stay);
       compactRef.current = true;
       setCompact(true);
 
       await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
-      await waitMs(reduced ? 0 : MORPH_SETTLE_MS);
     } catch (e) {
       console.error(e);
     } finally {
@@ -367,14 +367,16 @@ function AppInner() {
       };
       const to = { x: stay.x, y: stay.y, width, height };
 
-      await waitMs(reduced ? 0 : MORPH_FADE_OUT_MS);
-      await win.setAlwaysOnTop(false);
+      // Keep compact min during grow — raising NORMAL_MIN early snaps the
+      // window and leaves a “ghost” outline of the micro box.
+      void win.setAlwaysOnTop(false);
+      void win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
+
+      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
+
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
       compactRef.current = false;
       setCompact(false);
-
-      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
-      await waitMs(reduced ? 0 : MORPH_SETTLE_MS);
       normalGeom.current = to;
       saveNormalGeom(to);
     } catch (e) {
