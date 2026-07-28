@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { UpdateCheckButton } from "./UpdateCheckButton";
+import type { UpdateStatus } from "../hooks/useUpdater";
 
-export function AutostartToggle() {
+interface AutostartToggleProps {
+  updateStatus: UpdateStatus;
+  updateMessage: string | null;
+  onCheckUpdate: () => void;
+}
+
+export function AutostartToggle({
+  updateStatus,
+  updateMessage,
+  onCheckUpdate,
+}: AutostartToggleProps) {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +54,12 @@ export function AutostartToggle() {
         <span>Ouvrir au démarrage de Windows</span>
       </label>
       {error && <span className="footer-error">{error}</span>}
-      <span className="footer-tip">Clic droit → Terminer la tâche</span>
+      <span className="footer-tip">Ctrl = figer · Clic droit → Terminer</span>
+      <UpdateCheckButton
+        status={updateStatus}
+        message={updateMessage}
+        onCheck={onCheckUpdate}
+      />
     </footer>
   );
 }

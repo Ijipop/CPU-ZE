@@ -1,22 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { SensorReading } from "../types";
 
 interface Extremes {
   min: number | null;
   max: number | null;
+  /** Running sum of samples since reset (for average). */
+  sum: number;
+  count: number;
 }
 
 interface SensorCardProps {
   title: string;
   reading: SensorReading | null;
   extremes: Extremes;
-  unavailableHint: string;
+  unavailableHint: ReactNode;
   accent: "cpu" | "gpu";
 }
 
 function formatTemp(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value.toFixed(1)}°C`;
+}
+
+function averageOf(extremes: Extremes): number | null {
+  if (extremes.count <= 0) return null;
+  return extremes.sum / extremes.count;
 }
 
 function heatRatio(celsius: number): number {
@@ -37,6 +45,7 @@ function SensorCard({
   accent,
 }: SensorCardProps) {
   const current = reading?.celsius ?? null;
+  const avg = averageOf(extremes);
 
   return (
     <article className={`temp-card temp-card-${accent}`}>
@@ -44,13 +53,13 @@ function SensorCard({
         <h2 className="temp-card-title">{title}</h2>
         {reading && (
           <span className="temp-card-label" title={reading.label}>
-            {reading.label}
+            {reading.source} · {reading.label}
           </span>
         )}
       </header>
 
       {!reading ? (
-        <p className="temp-unavailable">{unavailableHint}</p>
+        <div className="temp-unavailable">{unavailableHint}</div>
       ) : (
         <>
           <div className="temp-current mono">
@@ -70,6 +79,12 @@ function SensorCard({
               <span className="temp-extreme-label">Min</span>
               <span className="mono temp-extreme-value">
                 {formatTemp(extremes.min)}
+              </span>
+            </div>
+            <div className="temp-extreme">
+              <span className="temp-extreme-label">Moy.</span>
+              <span className="mono temp-extreme-value">
+                {formatTemp(avg)}
               </span>
             </div>
             <div className="temp-extreme">
@@ -93,7 +108,12 @@ interface TemperaturePanelProps {
 }
 
 function emptyExtremes(): Extremes {
-  return { min: null, max: null };
+  return { min: null, max: null, sum: 0, count: 0 };
+}
+
+function fromSample(celsius: number | null): Extremes {
+  if (celsius === null || Number.isNaN(celsius)) return emptyExtremes();
+  return { min: celsius, max: celsius, sum: celsius, count: 1 };
 }
 
 function updateExtremes(prev: Extremes, celsius: number | null): Extremes {
@@ -101,6 +121,8 @@ function updateExtremes(prev: Extremes, celsius: number | null): Extremes {
   return {
     min: prev.min === null ? celsius : Math.min(prev.min, celsius),
     max: prev.max === null ? celsius : Math.max(prev.max, celsius),
+    sum: prev.sum + celsius,
+    count: prev.count + 1,
   };
 }
 
@@ -113,33 +135,29 @@ export function TemperaturePanel({
   const [cpuExtremes, setCpuExtremes] = useState<Extremes>(emptyExtremes);
   const [gpuExtremes, setGpuExtremes] = useState<Extremes>(emptyExtremes);
 
+  // Depend on the reading object (new each poll), not only celsius —
+  // otherwise a stable temp would never feed the average.
   useEffect(() => {
     setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
-  }, [cpu?.celsius]);
+  }, [cpu]);
 
   useEffect(() => {
     setGpuExtremes((prev) => updateExtremes(prev, gpu?.celsius ?? null));
-  }, [gpu?.celsius]);
+  }, [gpu]);
 
   const reset = () => {
-    setCpuExtremes({
-      min: cpu?.celsius ?? null,
-      max: cpu?.celsius ?? null,
-    });
-    setGpuExtremes({
-      min: gpu?.celsius ?? null,
-      max: gpu?.celsius ?? null,
-    });
+    setCpuExtremes(fromSample(cpu?.celsius ?? null));
+    setGpuExtremes(fromSample(gpu?.celsius ?? null));
   };
 
   return (
     <div className="temp-panel">
       <div className="temp-toolbar">
         <p className="temp-hint">
-          Températures en temps réel — min / max depuis le dernier reset
+          Températures en temps réel — min / moy. / max depuis le dernier reset
         </p>
         <button type="button" className="temp-reset" onClick={reset}>
-          Reset min / max
+          Reset min / moy. / max
         </button>
       </div>
 
@@ -152,22 +170,42 @@ export function TemperaturePanel({
       {loading && !cpu && !gpu ? (
         <div className="loading">Lecture des capteurs…</div>
       ) : (
-        <div className="temp-grid">
-          <SensorCard
-            title="CPU"
-            reading={cpu}
-            extremes={cpuExtremes}
-            unavailableHint="Capteur ACPI indisponible"
-            accent="cpu"
-          />
-          <SensorCard
-            title="GPU"
-            reading={gpu}
-            extremes={gpuExtremes}
-            unavailableHint="GPU NVIDIA (NVML) non détecté"
-            accent="gpu"
-          />
-        </div>
+        <>
+          <div className="temp-grid">
+            <SensorCard
+              title="CPU"
+              reading={cpu}
+              extremes={cpuExtremes}
+              unavailableHint={
+                <>
+                  <p>
+                    Windows n’expose pas la temp CPU sur ce PC (ACPI vide —
+                    normal sur Ryzen).
+                  </p>
+                  <p>
+                    Active dans <strong>HWiNFO</strong> : Settings →{" "}
+                    <em>Shared Memory Support</em>, puis laisse HWiNFO ouvert.
+                  </p>
+                </>
+              }
+              accent="cpu"
+            />
+            <SensorCard
+              title="GPU"
+              reading={gpu}
+              extremes={gpuExtremes}
+              unavailableHint="GPU non détecté (NVML / HWiNFO)"
+              accent="gpu"
+            />
+          </div>
+          {!cpu && (
+            <p className="temp-footnote">
+              CPU-ZE lit HWiNFO (mémoire partagée) ou LibreHardwareMonitor
+              (http://127.0.0.1:8085) — pas besoin de tout le détail HWiNFO, juste
+              la Tctl.
+            </p>
+          )}
+        </>
       )}
     </div>
   );

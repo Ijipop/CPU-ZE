@@ -4,6 +4,7 @@ export interface ProcessInfo {
   cpu: number;
   memoryBytes: number;
   memoryMb: number;
+  workingSetBytes: number;
   path: string | null;
 }
 
@@ -13,11 +14,13 @@ export interface SystemSnapshot {
   totalMemory: number;
   cpuCount: number;
   processes: ProcessInfo[];
+  metricsNote: string;
 }
 
 export interface SensorReading {
   celsius: number;
   label: string;
+  source: string;
 }
 
 export interface TemperatureSnapshot {

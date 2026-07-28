@@ -1,82 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
-import { check, type Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import type { Update } from "@tauri-apps/plugin-updater";
+import type { UpdateStatus } from "../hooks/useUpdater";
 
-type UpdateStatus =
-  | "idle"
-  | "checking"
-  | "available"
-  | "downloading"
-  | "installing"
-  | "error";
+interface UpdateBannerProps {
+  status: UpdateStatus;
+  update: Update | null;
+  progress: number | null;
+  error: string | null;
+  onInstall: () => void;
+  onDismiss: () => void;
+}
 
-export function UpdateBanner() {
-  const [status, setStatus] = useState<UpdateStatus>("idle");
-  const [update, setUpdate] = useState<Update | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      setStatus("checking");
-      try {
-        const next = await check();
-        if (cancelled) return;
-        if (next) {
-          setUpdate(next);
-          setStatus("available");
-        } else {
-          setStatus("idle");
-        }
-      } catch {
-        if (!cancelled) setStatus("idle");
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const install = useCallback(async () => {
-    if (!update) return;
-    setError(null);
-    setStatus("downloading");
-    setProgress(0);
-
-    try {
-      let downloaded = 0;
-      let contentLength = 0;
-
-      await update.downloadAndInstall((event) => {
-        switch (event.event) {
-          case "Started":
-            contentLength = event.data.contentLength ?? 0;
-            break;
-          case "Progress":
-            downloaded += event.data.chunkLength;
-            if (contentLength > 0) {
-              setProgress(Math.min(100, (downloaded / contentLength) * 100));
-            }
-            break;
-          case "Finished":
-            setProgress(100);
-            setStatus("installing");
-            break;
-        }
-      });
-
-      await relaunch();
-    } catch (e) {
-      setStatus("error");
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, [update]);
-
-  if (status === "idle" || status === "checking") {
+export function UpdateBanner({
+  status,
+  update,
+  progress,
+  error,
+  onInstall,
+  onDismiss,
+}: UpdateBannerProps) {
+  if (
+    status !== "available" &&
+    status !== "downloading" &&
+    status !== "installing" &&
+    status !== "error"
+  ) {
     return null;
   }
 
@@ -88,9 +35,14 @@ export function UpdateBanner() {
             <strong>Mise à jour {update.version}</strong>
             <span>disponible</span>
           </div>
-          <button type="button" className="update-btn" onClick={() => void install()}>
-            Installer
-          </button>
+          <div className="update-actions">
+            <button type="button" className="update-btn" onClick={onInstall}>
+              Installer
+            </button>
+            <button type="button" className="update-btn-ghost" onClick={onDismiss}>
+              Plus tard
+            </button>
+          </div>
         </>
       )}
 
@@ -107,14 +59,13 @@ export function UpdateBanner() {
 
       {status === "error" && (
         <div className="update-text update-error">
-          <strong>Échec de la mise à jour</strong>
+          <strong>Échec</strong>
           <span>{error}</span>
-          <button
-            type="button"
-            className="update-btn"
-            onClick={() => void install()}
-          >
+          <button type="button" className="update-btn" onClick={onInstall}>
             Réessayer
+          </button>
+          <button type="button" className="update-btn-ghost" onClick={onDismiss}>
+            Fermer
           </button>
         </div>
       )}
