@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProcessInfo, ProcessTabId } from "../types";
 import { ContextMenu } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -55,6 +55,7 @@ export function ProcessTable({
   onKill,
 }: ProcessTableProps) {
   const toast = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [pendingKill, setPendingKill] = useState<ProcessInfo | null>(null);
   const [killing, setKilling] = useState<number | null>(null);
@@ -68,6 +69,20 @@ export function ProcessTable({
     setSortDir(d.dir);
     setMenu(null);
   }, [tab]);
+
+  // Ctrl+wheel zooms WebView2 — while frozen, scroll the list instead.
+  useEffect(() => {
+    if (!frozen) return;
+    const onWheel = (e: WheelEvent) => {
+      const el = scrollRef.current;
+      if (!el) return;
+      e.preventDefault();
+      el.scrollTop += e.deltaY;
+      el.scrollLeft += e.deltaX;
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [frozen]);
 
   const sorted = useMemo(() => {
     const list = [...processes];
@@ -159,7 +174,7 @@ export function ProcessTable({
         />
         <span className="table-hint mono">{sorted.length} affichés</span>
         {frozen && (
-          <span className="freeze-badge" title="Relâche Ctrl pour reprendre">
+          <span className="freeze-badge" title="Molette = scroll · Relâche Ctrl pour reprendre">
             Figé · Ctrl
           </span>
         )}
@@ -174,7 +189,7 @@ export function ProcessTable({
         </div>
       )}
 
-      <div className="table-scroll">
+      <div className="table-scroll" ref={scrollRef}>
         <table className="process-table">
           <thead>
             <tr>

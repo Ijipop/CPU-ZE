@@ -4,7 +4,7 @@ interface ShortcutsHelpProps {
 
 const SHORTCUTS: { keys: string; desc: string }[] = [
   { keys: "Alt+Entrée", desc: "Agrandir / réduire (mode micro)" },
-  { keys: "Ctrl (maintenir)", desc: "Figer la liste des processus" },
+  { keys: "Ctrl (maintenir)", desc: "Figer la liste (molette = scroll)" },
   { keys: "Clic droit", desc: "Menu → Terminer la tâche" },
   { keys: "Mode micro", desc: "HUD compact always-on-top (titlebar)" },
   { keys: "Clic RAM", desc: "Basculer Go ↔ % (header / HUD)" },
