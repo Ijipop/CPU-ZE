@@ -1,11 +1,11 @@
 {
-    "version":  "0.3.1",
-    "notes":  "CPU-ZE v0.3.1",
-    "pub_date":  "2026-07-28T16:47:32Z",
+    "version":  "0.3.2",
+    "notes":  "CPU-ZE v0.3.2",
+    "pub_date":  "2026-07-28T17:22:09Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpRZXpsTjk3RkE3c2wyMHNRbEZZWGM2KzJlbmR4U2hmMm9qUFJRLzNmUEs4aXI5OWZ2QW5MUDBTeXhnVTFFMFZqUzQ1Y3RqS3FuMWtUdEZQTDczOEFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjU3MjM1CWZpbGU6Q1BVLVpFXzAuMy4xX3g2NC1zZXR1cC5leGUKTmp0eEgzNFJobkdpZ292ZEhMWk5SMEpiQlhMeTZmVmxJMTFjZmxzS2VVS2RlOTg1N2dBN2Nxd28zUVFlSkp4Ykw0YlRTMUcxWGlZKzFBb0NQcXFTQnc9PQo=",
-                                             "url":  "https://api.github.com/repos/Ijipop/CPU-ZE/releases/assets/492949804"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWJUUHB5OGlMcHlNQ3A4RVpPU0Q4VmYzd1R6UjJYbUFXV01jQUk1dThNK1h5VDZZRE5LQkdPdE1Sb3Fkd2w0d2EvR0Q0QU95SEF1OXJQM0NHQmNJRVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjU5MzEyCWZpbGU6Q1BVLVpFXzAuMy4yX3g2NC1zZXR1cC5leGUKLzBSZnpwMmhwMjZza0EvTFRpbXMzdHFINm5aOGlCRjQrYUVCWURoejJ0WGp2dnlSckJaRHBtWGJVSWluS1RPQW5LNHZ3d0JPcnBGZnc5RHRma0RBQ2c9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.2/CPU-ZE_0.3.2_x64-setup.exe"
                                          }
                   }
 }
