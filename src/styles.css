@@ -561,9 +561,24 @@ body {
 .footer {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: nowrap;
   padding-top: 2px;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.footer-right {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .autostart {
@@ -589,7 +604,6 @@ body {
 }
 
 .footer-tip {
-  margin-left: auto;
   color: var(--text-mute);
   font-size: 0.78rem;
 }
@@ -597,6 +611,20 @@ body {
 .footer-error {
   color: #ff8f8f;
   font-size: 0.78rem;
+}
+
+.metric-toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-align: right;
+}
+
+.metric-toggle:hover {
+  color: var(--accent);
 }
 
 @media (max-width: 800px) {
@@ -627,11 +655,18 @@ body {
     max-width: none;
   }
 
+  .footer {
+    flex-wrap: wrap;
+  }
+
   .footer-tip {
-    margin-left: 0;
     width: auto;
-    order: 3;
-    flex-basis: 100%;
+    order: unset;
+    flex-basis: auto;
+  }
+
+  .footer-right {
+    margin-left: auto;
   }
 }
 

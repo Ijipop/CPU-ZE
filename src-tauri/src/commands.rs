@@ -1,4 +1,5 @@
 use crate::precision::CpuTracker;
+use crate::win_metrics::{self, SystemCpuTracker};
 use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 use nvml_wrapper::Nvml;
 use serde::Serialize;
@@ -13,6 +14,7 @@ pub struct AppState {
     pub components: Mutex<Components>,
     pub nvml: Mutex<Option<Nvml>>,
     pub cpu_tracker: Mutex<CpuTracker>,
+    pub system_cpu: Mutex<SystemCpuTracker>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -21,10 +23,12 @@ pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
     pub cpu: f32,
-    /// Private bytes on Windows (not Task Manager "Memory" column).
+    /// Private Working Set — Task Manager Processes "Memory" column.
     pub memory_bytes: u64,
     pub memory_mb: f64,
-    /// Full working set (includes shared DLLs) — for comparison only.
+    /// PrivateUsage (commit / private bytes).
+    pub private_bytes: u64,
+    /// Full working set (private + shared).
     pub working_set_bytes: u64,
     pub path: Option<String>,
 }
@@ -84,11 +88,17 @@ fn refresh_system(sys: &mut System) {
     );
 }
 
-fn build_snapshot(sys: &System, tracker: &mut CpuTracker) -> SystemSnapshot {
+fn build_snapshot(
+    sys: &System,
+    tracker: &mut CpuTracker,
+    system_cpu: &mut SystemCpuTracker,
+) -> SystemSnapshot {
     let cpu_count = sys.cpus().len().max(1) as u64;
-    let total_cpu = sys.global_cpu_usage();
-    let used_memory = sys.used_memory();
-    let total_memory = sys.total_memory();
+    let total_cpu = system_cpu.update();
+
+    let (used_memory, total_memory) = win_metrics::physical_memory()
+        .map(|m| (m.used_bytes, m.total_bytes))
+        .unwrap_or_else(|| (sys.used_memory(), sys.total_memory()));
 
     let mut live_pids = Vec::with_capacity(sys.processes().len());
     let mut processes: Vec<ProcessInfo> = sys
@@ -98,13 +108,13 @@ fn build_snapshot(sys: &System, tracker: &mut CpuTracker) -> SystemSnapshot {
             let pid_u = pid.as_u32();
             live_pids.push(pid_u);
 
-            // Task Manager Processes formula (post–Windows 11 24H2 standard):
-            // 100 * ΔCPU_time / (Δwall * logical_processors)
             let cpu = tracker.update(pid_u, process.accumulated_cpu_time(), cpu_count);
 
-            // On Windows, sysinfo virtual_memory() == PrivateUsage (private bytes).
-            let memory_bytes = process.virtual_memory();
+            let private_bytes = process.virtual_memory();
             let working_set_bytes = process.memory();
+            // Prefer Private Working Set (TM Memory column); fall back to private bytes.
+            let memory_bytes =
+                win_metrics::private_working_set(pid_u).unwrap_or(private_bytes);
 
             ProcessInfo {
                 pid: pid_u,
@@ -112,6 +122,7 @@ fn build_snapshot(sys: &System, tracker: &mut CpuTracker) -> SystemSnapshot {
                 cpu,
                 memory_bytes,
                 memory_mb: memory_bytes as f64 / (1024.0 * 1024.0),
+                private_bytes,
                 working_set_bytes,
                 path: process
                     .exe()
@@ -135,7 +146,7 @@ fn build_snapshot(sys: &System, tracker: &mut CpuTracker) -> SystemSnapshot {
         total_memory,
         cpu_count: cpu_count as usize,
         processes,
-        metrics_note: "CPU = Δtemps / (Δhorloge × cœurs) · RAM = octets privés (≠ colonne Mémoire du Gestionnaire)"
+        metrics_note: "CPU = GetProcessTimes/QPC · RAM = Private Working Set (colonne Mémoire TM)"
             .into(),
     }
 }
@@ -147,14 +158,18 @@ pub fn list_processes(state: State<'_, AppState>) -> Result<SystemSnapshot, Stri
     let first = !WARMED.swap(true, std::sync::atomic::Ordering::SeqCst);
 
     if first {
-        // Seed under lock, then release before sleeping so kill/refresh can proceed.
         {
             let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
             let mut tracker = state
                 .cpu_tracker
                 .lock()
                 .map_err(|_| lock_err("cpu_tracker"))?;
+            let mut system_cpu = state
+                .system_cpu
+                .lock()
+                .map_err(|_| lock_err("system_cpu"))?;
             refresh_system(&mut sys);
+            let _ = system_cpu.update();
             for (pid, process) in sys.processes() {
                 tracker.seed(pid.as_u32(), process.accumulated_cpu_time());
             }
@@ -167,9 +182,13 @@ pub fn list_processes(state: State<'_, AppState>) -> Result<SystemSnapshot, Stri
         .cpu_tracker
         .lock()
         .map_err(|_| lock_err("cpu_tracker"))?;
+    let mut system_cpu = state
+        .system_cpu
+        .lock()
+        .map_err(|_| lock_err("system_cpu"))?;
 
     refresh_system(&mut sys);
-    Ok(build_snapshot(&sys, &mut tracker))
+    Ok(build_snapshot(&sys, &mut tracker, &mut system_cpu))
 }
 
 fn is_critical_process_name(name: &str) -> bool {
