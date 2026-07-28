@@ -45,7 +45,7 @@ Artefacts locaux :
 Secrets GitHub requis :
 
 - `TAURI_SIGNING_PRIVATE_KEY` — contenu de la clé privée (générée via `npx tauri signer generate`)
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — laisser vide si la clé n’a pas de mot de passe
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — optionnel si la clé a un mot de passe
 
 ## Stack
 
