@@ -783,10 +783,6 @@ body {
     padding: 6px 8px;
   }
 
-  .temp-current-value {
-    font-size: clamp(1.35rem, 4.5vh, 1.8rem);
-  }
-
   .temp-cta-btn {
     width: 100%;
     text-align: center;
@@ -890,6 +886,8 @@ body {
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  container-type: size;
+  container-name: temp-card;
 }
 
 .temp-card-cpu {
@@ -906,14 +904,17 @@ body {
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .temp-card-title {
   margin: 0;
   font-family: var(--font-brand);
-  font-size: 1.15rem;
+  font-size: clamp(0.95rem, 2.4cqh + 0.55rem, 1.15rem);
   font-weight: 700;
   letter-spacing: 0.04em;
+  line-height: 1.15;
 }
 
 .temp-card-label {
@@ -1023,6 +1024,7 @@ body {
   gap: 12px;
   min-height: 0;
   flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .temp-current {
@@ -1030,7 +1032,9 @@ body {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  min-height: 0;
   justify-content: flex-end;
+  overflow: hidden;
 }
 
 .temp-util-slot {
@@ -1043,10 +1047,15 @@ body {
 }
 
 .temp-current-value {
-  font-size: clamp(1.45rem, 5.5vh, 3rem);
+  /* Scale with card height so the big °C never crawls over CPU/GPU titles. */
+  font-size: clamp(1.15rem, min(5.5vh, 18cqh), 3rem);
   font-weight: 600;
   letter-spacing: -0.03em;
-  line-height: 1;
+  line-height: 1.05;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .temp-current-caption {
@@ -1056,6 +1065,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .temp-meter {
@@ -1141,6 +1151,83 @@ body {
   .temp-card-label {
     max-width: 40%;
     font-size: 0.68rem;
+  }
+}
+
+/* Per-card compression when the window (or stacked half) is very short. */
+@container temp-card (max-height: 240px) {
+  .temp-card-label {
+    display: none;
+  }
+
+  .temp-current-caption {
+    display: none;
+  }
+
+  .temp-current-value {
+    font-size: clamp(1.05rem, 14cqh, 1.65rem);
+  }
+
+  .temp-util-slot {
+    min-width: 0;
+  }
+
+  .temp-extreme {
+    padding: 4px 6px;
+  }
+
+  .temp-extreme-value {
+    font-size: 0.9rem;
+  }
+}
+
+@container temp-card (max-height: 180px) {
+  .temp-extremes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .temp-extreme-label {
+    font-size: 0.58rem;
+  }
+
+  .temp-extreme-value {
+    font-size: 0.82rem;
+  }
+
+  .temp-meter {
+    height: 3px;
+  }
+
+  .temp-util {
+    gap: 0;
+  }
+
+  .temp-util-label {
+    display: none;
+  }
+}
+
+@container temp-card (max-height: 140px) {
+  .temp-extremes {
+    display: none;
+  }
+
+  .temp-meter {
+    display: none;
+  }
+
+  .temp-current-row {
+    flex: 1;
+    align-items: center;
+  }
+
+  .temp-current {
+    justify-content: center;
+  }
+
+  .temp-current-value {
+    font-size: clamp(1rem, 22cqh, 1.45rem);
   }
 }
 
