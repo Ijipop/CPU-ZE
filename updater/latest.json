@@ -1,11 +1,11 @@
 {
-    "version":  "0.3.11",
-    "notes":  "## What\u0027s new\r\n- Onglet **Temp** : cartes CPU/GPU plus réactives (partagent la hauteur, se compressent)\r\n- Plus d’underlap du footer (démarrage / tips) sous les cartes\r\n\r\n## Test\r\n1. Installe 0.3.11\r\n2. Onglet Temp → réduis la fenêtre → les 2 cartes restent lisibles, footer visible",
-    "pub_date":  "2026-07-28T21:54:43Z",
+    "version":  "0.3.12",
+    "notes":  "## What\u0027s new\n- Onglet **Temp** : plus de chevauchement entre les labels CPU/GPU et le °C quand la fenêtre est très réduite\n- Typo et chrome secondaires qui se compressent avec la hauteur des cartes\n\n## Test\n1. Installe 0.3.12\n2. Onglet Temp → réduis beaucoup la fenêtre → CPU/GPU restent lisibles, sans overlap sur le °C",
+    "pub_date":  "2026-07-28T22:28:26Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWRRa3VsTitNWFRRempMR2U3QnpqUG16TkZUS0Nzam9RVzI5YnlKTU92YXlHRE8wTWcvOUo3bDhKRzM5QnFVeVFMVDNXdGxnWFBJcnBrZXNtYUc5cHdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MjcyMzc4CWZpbGU6Q1BVLVpFXzAuMy4xMV94NjQtc2V0dXAuZXhlCmlLTTh2citHa3l3dXBvL2lydVNJTno3VnBsTTh6NlZ1MFdOdDdhS2E5aDFaTlhKaU9yck1wWStneDBmQlZEMDhqbkxveDVDSmtpcUcrTjY1RENwSUJRPT0K",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.11/CPU-ZE_0.3.11_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWY5dzhUVU5EZGU0SVVkZnhBdGNkc3dvQkpNa3RpWGtheFp5dGJsWDlBYzlCa0tJMTZrNXV6c3U3SzBycG1NTGM0amxCTGNqUUd5eU5SSzR0WlVmaXdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1Mjc3NjU4CWZpbGU6Q1BVLVpFXzAuMy4xMl94NjQtc2V0dXAuZXhlCjFseWRrR1haZm1HLzNaRW5waWtNN3J5NXh1Yk4wczN4bHpKYzIrWnVSRXFHTVRRRk5hK0d5cURubThySnNJYWxpN0EzSHF6RVp0b2N2VUMrZEIyTENnPT0K",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.12/CPU-ZE_0.3.12_x64-setup.exe"
                                          }
                   }
 }
