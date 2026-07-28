@@ -132,9 +132,9 @@ export function ProcessTable({
               </th>
               <th
                 className="col-ram"
-                title="Octets privés (Private Bytes) — différent de la colonne Mémoire du Gestionnaire des tâches"
+                title="Private Working Set — même métrique que la colonne Mémoire du Gestionnaire des tâches"
               >
-                RAM privée
+                Mémoire
               </th>
             </tr>
           </thead>

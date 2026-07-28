@@ -1,0 +1,11 @@
+{
+  "version": "0.2.1",
+  "notes": "Placeholder — overwritten by publish script after each release.",
+  "pub_date": "2026-07-28T15:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://api.github.com/repos/Ijipop/CPU-ZE/releases/assets/0"
+    }
+  }
+}

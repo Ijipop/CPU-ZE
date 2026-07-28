@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SensorReading } from "../types";
 
 interface MiniHudProps {
@@ -7,6 +8,20 @@ interface MiniHudProps {
   cpuTemp: SensorReading | null;
   gpuTemp: SensorReading | null;
   onExpand: () => void;
+}
+
+type RamMode = "bytes" | "pct";
+
+const RAM_MODE_KEY = "cpuze.ramMode";
+
+function loadRamMode(): RamMode {
+  try {
+    const v = localStorage.getItem(RAM_MODE_KEY);
+    if (v === "pct" || v === "bytes") return v;
+  } catch {
+    /* ignore */
+  }
+  return "bytes";
 }
 
 function formatBytes(bytes: number): string {
@@ -24,9 +39,22 @@ export function MiniHud({
   gpuTemp,
   onExpand,
 }: MiniHudProps) {
+  const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
   const cpuPct = Math.min(100, Math.max(0, totalCpu));
   const ramPct =
     totalMemory > 0 ? Math.min(100, (usedMemory / totalMemory) * 100) : 0;
+
+  const toggleRam = () => {
+    setRamMode((prev) => {
+      const next = prev === "bytes" ? "pct" : "bytes";
+      try {
+        localStorage.setItem(RAM_MODE_KEY, next);
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="mini-hud">
@@ -43,10 +71,25 @@ export function MiniHud({
         <div className="mini-metric">
           <div className="mini-top">
             <span className="mini-label">RAM</span>
-            <span className="mono mini-value">
-              {formatBytes(usedMemory)}
-              <span className="mini-muted">/{formatBytes(totalMemory)}</span>
-            </span>
+            <button
+              type="button"
+              className="mono mini-value metric-toggle"
+              onClick={toggleRam}
+              title={
+                ramMode === "bytes"
+                  ? "Cliquer pour afficher le %"
+                  : "Cliquer pour afficher Go / Go"
+              }
+            >
+              {ramMode === "bytes" ? (
+                <>
+                  {formatBytes(usedMemory)}
+                  <span className="mini-muted">/{formatBytes(totalMemory)}</span>
+                </>
+              ) : (
+                `${ramPct.toFixed(0)}%`
+              )}
+            </button>
           </div>
           <div className="mini-bar">
             <div className="meter-fill meter-ram" style={{ width: `${ramPct}%` }} />

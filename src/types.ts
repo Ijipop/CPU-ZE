@@ -2,12 +2,14 @@ export interface ProcessInfo {
   pid: number;
   name: string;
   cpu: number;
+  /** Private Working Set (Task Manager Memory column). */
   memoryBytes: number;
   memoryMb: number;
+  /** PrivateUsage (private bytes). */
+  privateBytes: number;
   workingSetBytes: number;
   path: string | null;
 }
-
 export interface SystemSnapshot {
   totalCpu: number;
   usedMemory: number;

@@ -44,22 +44,26 @@ export function AutostartToggle({
 
   return (
     <footer className="footer">
-      <label className={`autostart ${busy ? "is-busy" : ""}`}>
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={busy}
-          onChange={() => void toggle()}
+      <div className="footer-left">
+        <label className={`autostart ${busy ? "is-busy" : ""}`}>
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={busy}
+            onChange={() => void toggle()}
+          />
+          <span>Ouvrir au démarrage de Windows</span>
+        </label>
+        {error && <span className="footer-error">{error}</span>}
+        <span className="footer-tip">Ctrl = figer · Clic droit → Terminer</span>
+      </div>
+      <div className="footer-right">
+        <UpdateCheckButton
+          status={updateStatus}
+          message={updateMessage}
+          onCheck={onCheckUpdate}
         />
-        <span>Ouvrir au démarrage de Windows</span>
-      </label>
-      {error && <span className="footer-error">{error}</span>}
-      <span className="footer-tip">Ctrl = figer · Clic droit → Terminer</span>
-      <UpdateCheckButton
-        status={updateStatus}
-        message={updateMessage}
-        onCheck={onCheckUpdate}
-      />
+      </div>
     </footer>
   );
 }

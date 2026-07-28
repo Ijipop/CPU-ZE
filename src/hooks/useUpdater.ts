@@ -11,6 +11,24 @@ export type UpdateStatus =
   | "installing"
   | "error";
 
+/** Contents API returns raw file body with this Accept. */
+const CHECK_HEADERS = {
+  Accept: "application/vnd.github.raw",
+};
+
+/** Release asset binary download. */
+const DOWNLOAD_HEADERS = {
+  Accept: "application/octet-stream",
+};
+
+function formatUpdaterError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  if (/valid release json|404|401|403|failed to fetch|error sending request/i.test(raw)) {
+    return "Repo privé / JSON updater inaccessible. Rebuild avec CPUZE_GH_UPDATER_TOKEN (voir README).";
+  }
+  return raw;
+}
+
 export function useUpdater(checkOnMount = true) {
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [update, setUpdate] = useState<Update | null>(null);
@@ -24,7 +42,7 @@ export function useUpdater(checkOnMount = true) {
     setMessage(null);
     setProgress(null);
     try {
-      const next = await check();
+      const next = await check({ headers: CHECK_HEADERS });
       if (next) {
         setUpdate(next);
         setStatus("available");
@@ -40,7 +58,7 @@ export function useUpdater(checkOnMount = true) {
       }
     } catch (e) {
       setStatus("error");
-      setError(e instanceof Error ? e.message : String(e));
+      setError(formatUpdaterError(e));
       setMessage("Échec de la vérif");
     }
   }, []);
@@ -56,29 +74,32 @@ export function useUpdater(checkOnMount = true) {
       let downloaded = 0;
       let contentLength = 0;
 
-      await update.downloadAndInstall((event) => {
-        switch (event.event) {
-          case "Started":
-            contentLength = event.data.contentLength ?? 0;
-            break;
-          case "Progress":
-            downloaded += event.data.chunkLength;
-            if (contentLength > 0) {
-              setProgress(Math.min(100, (downloaded / contentLength) * 100));
-            }
-            break;
-          case "Finished":
-            setProgress(100);
-            setStatus("installing");
-            setMessage("Installation…");
-            break;
-        }
-      });
+      await update.downloadAndInstall(
+        (event) => {
+          switch (event.event) {
+            case "Started":
+              contentLength = event.data.contentLength ?? 0;
+              break;
+            case "Progress":
+              downloaded += event.data.chunkLength;
+              if (contentLength > 0) {
+                setProgress(Math.min(100, (downloaded / contentLength) * 100));
+              }
+              break;
+            case "Finished":
+              setProgress(100);
+              setStatus("installing");
+              setMessage("Installation…");
+              break;
+          }
+        },
+        { headers: DOWNLOAD_HEADERS },
+      );
 
       await relaunch();
     } catch (e) {
       setStatus("error");
-      setError(e instanceof Error ? e.message : String(e));
+      setError(formatUpdaterError(e));
       setMessage("Échec de la mise à jour");
     }
   }, [update]);
@@ -94,7 +115,7 @@ export function useUpdater(checkOnMount = true) {
     let cancelled = false;
     void (async () => {
       try {
-        const next = await check();
+        const next = await check({ headers: CHECK_HEADERS });
         if (cancelled) return;
         if (next) {
           setUpdate(next);
