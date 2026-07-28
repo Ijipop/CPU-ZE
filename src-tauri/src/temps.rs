@@ -110,31 +110,49 @@ fn score_cpu_temp(sensor: &str, label: &str) -> i32 {
     let s = sensor.to_lowercase();
     let l = label.to_lowercase();
 
-    if s.contains("nvidia")
+    // Exclude discrete storage / dedicated GPU sensors — but NOT APU names like
+    // "Ryzen … with Radeon Graphics" (LHM / Renoir laptops).
+    let looks_like_cpu = s.contains("ryzen")
+        || s.contains("amd")
+        || s.contains("intel")
+        || s.contains("cpu")
+        || s.contains("zen");
+    let looks_like_gpu_only = (s.contains("nvidia")
         || s.contains("geforce")
-        || s.contains("radeon")
-        || s.contains("gpu")
+        || s.contains("gtx")
+        || s.contains("rtx")
+        || (s.contains("radeon") && !looks_like_cpu)
+        || (s.contains("gpu") && !looks_like_cpu))
+        && !looks_like_cpu;
+
+    if looks_like_gpu_only
         || s.contains("s.m.a.r.t")
         || s.contains("ssd")
         || s.contains("hdd")
+        || s.contains("nvme")
     {
         return -100;
     }
 
     let mut score = 0;
-    if s.contains("ryzen") || s.contains("amd") || s.contains("intel") || s.contains("cpu") {
+    if looks_like_cpu {
         score += 20;
     }
-    if l.contains("tctl") || l.contains("tdie") {
+    if l.contains("tctl") || l.contains("tdie") || l.contains("tctl/tdie") {
         score += 100;
     } else if l.contains("package") {
         score += 80;
-    } else if l.contains("cpu") && l.contains("temp") {
+    } else if l.contains("cpu") && (l.contains("temp") || l.contains("temperature")) {
         score += 60;
-    } else if l.contains("core") && (l.contains("average") || l.contains("avg")) {
+    } else if l.contains("temperature") && looks_like_cpu {
+        // LHM often labels the package sensor simply "Temperature"
+        score += 55;
+    } else if l.contains("core") && (l.contains("average") || l.contains("avg") || l.contains("max")) {
         score += 40;
-    } else if l.starts_with("core #") || l.starts_with("core(") {
+    } else if l.starts_with("core #") || l.starts_with("core(") || l.starts_with("core ") {
         score += 10;
+    } else if looks_like_cpu {
+        score += 5;
     } else {
         score -= 5;
     }

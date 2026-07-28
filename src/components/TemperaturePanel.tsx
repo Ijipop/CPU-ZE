@@ -183,8 +183,10 @@ export function TemperaturePanel({
                     normal sur Ryzen).
                   </p>
                   <p>
-                    Active dans <strong>HWiNFO</strong> : Settings →{" "}
-                    <em>Shared Memory Support</em>, puis laisse HWiNFO ouvert.
+                    Installe{" "}
+                    <strong>LibreHardwareMonitor</strong>, puis : Options →{" "}
+                    <em>Remote Web Server</em> → Start (port 8085), et laisse
+                    LHM ouvert.
                   </p>
                 </>
               }
@@ -194,15 +196,16 @@ export function TemperaturePanel({
               title="GPU"
               reading={gpu}
               extremes={gpuExtremes}
-              unavailableHint="GPU non détecté (NVML / HWiNFO)"
+              unavailableHint="GPU non détecté (NVML / LibreHardwareMonitor)"
               accent="gpu"
             />
           </div>
           {!cpu && (
             <p className="temp-footnote">
-              CPU-ZE lit HWiNFO (mémoire partagée) ou LibreHardwareMonitor
-              (http://127.0.0.1:8085) — pas besoin de tout le détail HWiNFO, juste
-              la Tctl.
+              CPU-ZE lit LibreHardwareMonitor (
+              http://127.0.0.1:8085/data.json ) en priorité — utile pour suivre
+              max/moy. sous charge (ex. pâte thermique). HWiNFO Shared Memory
+              reste un fallback optionnel.
             </p>
           )}
         </>

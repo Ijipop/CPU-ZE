@@ -214,8 +214,8 @@ pub fn kill_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> 
 }
 
 fn read_cpu_temperature(components: &mut Components) -> Option<SensorReading> {
-    crate::temps::read_cpu_from_hwinfo()
-        .or_else(crate::temps::read_cpu_from_lhm)
+    crate::temps::read_cpu_from_lhm()
+        .or_else(crate::temps::read_cpu_from_hwinfo)
         .or_else(|| crate::temps::read_cpu_from_acpi(components))
 }
 
@@ -242,7 +242,7 @@ fn read_gpu_temperature(nvml_slot: &mut Option<Nvml>) -> Option<SensorReading> {
         }
     }
 
-    crate::temps::read_gpu_from_hwinfo().or_else(crate::temps::read_gpu_from_lhm)
+    crate::temps::read_gpu_from_lhm().or_else(crate::temps::read_gpu_from_hwinfo)
 }
 
 #[tauri::command]

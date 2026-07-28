@@ -19,16 +19,22 @@ Mini Task Manager Windows — léger, rapide, et soigné.
 - **CPU** : `% = Δtemps CPU / (Δhorloge × cœurs logiques)` — même logique que l’onglet Processes du Gestionnaire des tâches
 - **RAM (processus)** : **octets privés** (Private Bytes). Ce n’est **pas** la colonne « Mémoire » du Gestionnaire (plus proche du working set privé)
 - **Températures** :
-  1. HWiNFO (mémoire partagée) — recommandé sur Ryzen
-  2. LibreHardwareMonitor (`http://127.0.0.1:8085/data.json`)
+  1. **LibreHardwareMonitor** (`http://127.0.0.1:8085/data.json`) — recommandé sur Ryzen
+  2. HWiNFO (mémoire partagée) — fallback optionnel
   3. ACPI (scoré, uniquement si le label ressemble à un CPU)
-  - GPU : NVML (NVIDIA) en priorité, sinon HWiNFO / LHM
+  - GPU : NVML (NVIDIA) en priorité, sinon LHM / HWiNFO
 
-### HWiNFO (temp CPU)
+### LibreHardwareMonitor (temp CPU)
 
-Sur beaucoup de PC AMD, ACPI n’expose pas la temp CPU. Active dans HWiNFO :
+Sur beaucoup de PC AMD, ACPI n’expose pas la temp CPU. Avec LHM :
 
-**Settings → Shared Memory Support**, puis laisse HWiNFO ouvert en arrière-plan.
+1. Télécharge [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
+2. **Options → Remote Web Server → Start** (port **8085**)
+3. Laisse LHM ouvert (réduit dans la barre système OK)
+
+Utile pour suivre **max / moyenne** sous la même charge (ex. savoir si la pâte thermique se dégrade).
+
+HWiNFO Shared Memory reste supporté en secours si tu l’utilises déjà.
 
 ## Prérequis (dev)
 
@@ -69,4 +75,4 @@ Secrets GitHub requis :
 
 ## Stack
 
-Tauri 2 · React · TypeScript · sysinfo · NVML · HWiNFO SM · tauri-plugin-updater
+Tauri 2 · React · TypeScript · sysinfo · NVML · LibreHardwareMonitor · tauri-plugin-updater
