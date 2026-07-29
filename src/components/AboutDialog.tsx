@@ -1,9 +1,13 @@
+import { useLocale } from "../i18n/LocaleContext";
+
 interface AboutDialogProps {
   version: string;
   onClose: () => void;
 }
 
 export function AboutDialog({ version, onClose }: AboutDialogProps) {
+  const { t } = useLocale();
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
@@ -17,30 +21,22 @@ export function AboutDialog({ version, onClose }: AboutDialogProps) {
           CPU-ZE{" "}
           <span className="mono modal-version">v{version}</span>
         </h2>
-        <p className="modal-body">
-          Mini Task Manager Windows — CPU, RAM et températures, léger et rapide.
-        </p>
+        <p className="modal-body">{t("about.body")}</p>
         <ul className="about-list">
           <li>
-            <strong>Capteurs CPU</strong> — PawnIO (AMD Tctl / Intel package),
-            puis LHM, HWiNFO, ACPI
+            <strong>{t("about.cpuSensors")}</strong> — {t("about.cpuSensorsDetail")}
           </li>
           <li>
-            <strong>GPU</strong> — NVML (NVIDIA) en priorité, sinon LHM / HWiNFO
+            <strong>{t("about.gpu")}</strong> — {t("about.gpuDetail")}
           </li>
           <li>
-            <strong>Métriques</strong> — parité Gestionnaire des tâches :
-            CPU = GetProcessTimes/QPC · RAM = Private Working Set
+            <strong>{t("about.metrics")}</strong> — {t("about.metricsDetail")}
           </li>
         </ul>
-        <p className="modal-footnote">
-          Driver PawnIO (pawnio.eu) — lecture des temps CPU en Admin. Coche
-          « Ouvrir au démarrage (Admin) » pour un login élevé sans UAC à chaque
-          fois.
-        </p>
+        <p className="modal-footnote">{t("about.footnote")}</p>
         <div className="modal-actions">
           <button type="button" className="modal-btn" onClick={onClose}>
-            Fermer
+            {t("about.close")}
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { disable as disablePluginAutostart } from "@tauri-apps/plugin-autostart";
 import { UpdateCheckButton } from "./UpdateCheckButton";
 import type { UpdateStatus } from "../hooks/useUpdater";
+import { useLocale } from "../i18n/LocaleContext";
+import { localizeBackendError } from "../i18n";
 
 interface AutostartToggleProps {
   updateStatus: UpdateStatus;
@@ -19,6 +21,7 @@ export function AutostartToggle({
   startCompact,
   onToggleStartCompact,
 }: AutostartToggleProps) {
+  const { locale, t } = useLocale();
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +29,8 @@ export function AutostartToggle({
   useEffect(() => {
     void invoke<boolean>("elevated_autostart_is_enabled")
       .then(setEnabled)
-      .catch((e) => setError(String(e)));
-  }, []);
+      .catch((e) => setError(localizeBackendError(locale, String(e))));
+  }, [locale]);
 
   const toggle = async () => {
     setBusy(true);
@@ -37,7 +40,6 @@ export function AutostartToggle({
         await invoke("elevated_autostart_disable");
         setEnabled(false);
       } else {
-        // Avoid double-start with the old non-elevated Run key.
         try {
           await disablePluginAutostart();
         } catch {
@@ -47,8 +49,8 @@ export function AutostartToggle({
         setEnabled(true);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      // Re-sync in case UAC was cancelled mid-flight.
+      const raw = e instanceof Error ? e.message : String(e);
+      setError(localizeBackendError(locale, raw));
       try {
         setEnabled(await invoke<boolean>("elevated_autostart_is_enabled"));
       } catch {
@@ -69,7 +71,7 @@ export function AutostartToggle({
             disabled={busy}
             onChange={() => void toggle()}
           />
-          <span>Ouvrir au démarrage (Admin)</span>
+          <span>{t("footer.autostart")}</span>
         </label>
         <label className="autostart">
           <input
@@ -77,12 +79,10 @@ export function AutostartToggle({
             checked={startCompact}
             onChange={(e) => onToggleStartCompact(e.target.checked)}
           />
-          <span>Démarrer en mode micro</span>
+          <span>{t("footer.startMicro")}</span>
         </label>
         {error && <span className="footer-error">{error}</span>}
-        <span className="footer-tip">
-          Alt+Entrée = micro · Ctrl = figer · position mémorisée
-        </span>
+        <span className="footer-tip">{t("footer.tip")}</span>
       </div>
       <div className="footer-right">
         <UpdateCheckButton

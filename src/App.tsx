@@ -35,11 +35,12 @@ import {
   type PhysicalPos,
 } from "./prefs";
 import type { ProcessTabId, TabId } from "./types";
+import { useLocale } from "./i18n/LocaleContext";
 import "./styles.css";
 
 const NORMAL_MIN = { width: 420, height: 320 };
-const COMPACT_MIN = { width: 280, height: 120 };
-const COMPACT_SIZE = { width: 320, height: 150 };
+const COMPACT_MIN = { width: 280, height: 100 };
+const COMPACT_SIZE = { width: 320, height: 124 };
 /** Outer window morph — content is veiled, so a soft desktop resize is fine. */
 const MORPH_RESIZE_MS = 200;
 
@@ -181,6 +182,7 @@ async function stayOnCurrentMonitor(
 }
 
 function AppInner() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<TabId>("cpu");
   const [compact, setCompact] = useState(false);
   const [startCompact, setStartCompact] = useState(loadStartCompact);
@@ -516,7 +518,7 @@ function AppInner() {
                 )}
 
                 {loading && snapshot.processes.length === 0 ? (
-                  <div className="loading">Chargement des processus…</div>
+                  <div className="loading">{t("app.loadingProcesses")}</div>
                 ) : (
                   <ProcessTable
                     processes={snapshot.processes}

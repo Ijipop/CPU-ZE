@@ -1,5 +1,6 @@
 import type { Update } from "@tauri-apps/plugin-updater";
 import type { UpdateStatus } from "../hooks/useUpdater";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface UpdateBannerProps {
   status: UpdateStatus;
@@ -21,6 +22,8 @@ export function UpdateBanner({
   onDismiss,
   suppressAvailable = false,
 }: UpdateBannerProps) {
+  const { t } = useLocale();
+
   if (
     status !== "available" &&
     status !== "downloading" &&
@@ -34,8 +37,10 @@ export function UpdateBanner({
     return null;
   }
 
-  // Progress / errors stay in the modal when it is open.
-  if (suppressAvailable && (status === "downloading" || status === "installing" || status === "error")) {
+  if (
+    suppressAvailable &&
+    (status === "downloading" || status === "installing" || status === "error")
+  ) {
     return null;
   }
 
@@ -44,15 +49,19 @@ export function UpdateBanner({
       {status === "available" && update && (
         <>
           <div className="update-text">
-            <strong>Mise à jour {update.version}</strong>
-            <span>disponible</span>
+            <strong>{t("update.bannerTitle", { version: update.version })}</strong>
+            <span>{t("update.availableShort")}</span>
           </div>
           <div className="update-actions">
             <button type="button" className="update-btn" onClick={onInstall}>
-              Installer
+              {t("update.install")}
             </button>
-            <button type="button" className="update-btn-ghost" onClick={onDismiss}>
-              Plus tard
+            <button
+              type="button"
+              className="update-btn-ghost"
+              onClick={onDismiss}
+            >
+              {t("update.later")}
             </button>
           </div>
         </>
@@ -62,7 +71,9 @@ export function UpdateBanner({
         <div className="update-progress-block">
           <div className="update-text">
             <strong>
-              {status === "downloading" ? "Téléchargement…" : "Installation…"}
+              {status === "downloading"
+                ? t("update.downloading")
+                : t("update.installing")}
             </strong>
             {progress !== null && (
               <span className="mono">{Math.round(progress)}%</span>
@@ -71,7 +82,9 @@ export function UpdateBanner({
           <div className="update-progress-track" aria-hidden>
             <div
               className="update-progress-fill"
-              style={{ width: `${progress ?? (status === "installing" ? 100 : 8)}%` }}
+              style={{
+                width: `${progress ?? (status === "installing" ? 100 : 8)}%`,
+              }}
             />
           </div>
         </div>
@@ -79,13 +92,17 @@ export function UpdateBanner({
 
       {status === "error" && (
         <div className="update-text update-error">
-          <strong>Échec</strong>
+          <strong>{t("update.fail")}</strong>
           <span>{error}</span>
           <button type="button" className="update-btn" onClick={onInstall}>
-            Réessayer
+            {t("update.retry")}
           </button>
-          <button type="button" className="update-btn-ghost" onClick={onDismiss}>
-            Fermer
+          <button
+            type="button"
+            className="update-btn-ghost"
+            onClick={onDismiss}
+          >
+            {t("update.close")}
           </button>
         </div>
       )}

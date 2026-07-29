@@ -1,5 +1,6 @@
 import type { Update } from "@tauri-apps/plugin-updater";
 import type { UpdateStatus } from "../hooks/useUpdater";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface UpdateDialogProps {
   status: UpdateStatus;
@@ -16,15 +17,15 @@ function notesFromUpdate(update: Update): string | null {
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
-function parseNotes(notes: string | null): {
+function parseNotes(
+  notes: string | null,
+  fallback: string,
+): {
   items: string[];
   raw: string | null;
 } {
   if (!notes) {
-    return {
-      items: ["Des améliorations et correctifs sont disponibles."],
-      raw: null,
-    };
+    return { items: [fallback], raw: null };
   }
 
   const lines = notes
@@ -53,7 +54,11 @@ export function UpdateDialog({
   onInstall,
   onLater,
 }: UpdateDialogProps) {
-  const { items, raw } = parseNotes(notesFromUpdate(update));
+  const { t } = useLocale();
+  const { items, raw } = parseNotes(
+    notesFromUpdate(update),
+    t("update.fallbackNotes"),
+  );
   const busy = status === "downloading" || status === "installing";
 
   return (
@@ -67,18 +72,15 @@ export function UpdateDialog({
       >
         <div className="update-dialog-glow" aria-hidden />
 
-        <p className="update-dialog-kicker">Mise à jour disponible</p>
+        <p className="update-dialog-kicker">{t("update.availableKicker")}</p>
         <h2 id="update-dialog-title" className="modal-title update-dialog-title">
           CPU-ZE{" "}
           <span className="mono modal-version">v{update.version}</span>
         </h2>
-        <p className="modal-body update-dialog-lead">
-          Une nouvelle version est prête. Tu peux l’installer maintenant ou
-          continuer et le faire plus tard — rien n’est forcé.
-        </p>
+        <p className="modal-body update-dialog-lead">{t("update.lead")}</p>
 
         <div className="update-dialog-notes">
-          <h3 className="update-dialog-notes-title">Nouveautés</h3>
+          <h3 className="update-dialog-notes-title">{t("update.whatsNew")}</h3>
           {items.length > 0 ? (
             <ul className="update-notes-list">
               {items.map((item) => (
@@ -94,7 +96,9 @@ export function UpdateDialog({
           <div className="update-progress-block update-dialog-progress">
             <div className="update-text">
               <strong>
-                {status === "downloading" ? "Téléchargement…" : "Installation…"}
+                {status === "downloading"
+                  ? t("update.downloading")
+                  : t("update.installing")}
               </strong>
               {progress !== null && (
                 <span className="mono">{Math.round(progress)}%</span>
@@ -124,7 +128,7 @@ export function UpdateDialog({
             onClick={onLater}
             disabled={busy}
           >
-            Plus tard
+            {t("update.later")}
           </button>
           <button
             type="button"
@@ -133,7 +137,11 @@ export function UpdateDialog({
             disabled={busy}
             autoFocus
           >
-            {status === "error" ? "Réessayer" : busy ? "En cours…" : "Installer"}
+            {status === "error"
+              ? t("update.retry")
+              : busy
+                ? t("update.busy")
+                : t("update.install")}
           </button>
         </div>
       </div>

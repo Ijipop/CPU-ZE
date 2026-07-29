@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useLocale } from "../i18n/LocaleContext";
+import { formatBytesLocalized } from "../i18n";
 
 interface HeaderStatsProps {
   totalCpu: number;
@@ -21,19 +23,13 @@ function loadRamMode(): RamMode {
   return "bytes";
 }
 
-function formatBytes(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} Go`;
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(0)} Mo`;
-}
-
 export function HeaderStats({
   totalCpu,
   usedMemory,
   totalMemory,
   processCount,
 }: HeaderStatsProps) {
+  const { locale, t } = useLocale();
   const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
   const ramPct =
     totalMemory > 0 ? Math.min(100, (usedMemory / totalMemory) * 100) : 0;
@@ -76,12 +72,12 @@ export function HeaderStats({
               onClick={toggleRam}
               title={
                 ramMode === "bytes"
-                  ? "Cliquer pour afficher le %"
-                  : "Cliquer pour afficher Go / Go"
+                  ? t("metrics.ramShowPct")
+                  : t("metrics.ramShowBytes")
               }
             >
               {ramMode === "bytes"
-                ? `${formatBytes(usedMemory)} / ${formatBytes(totalMemory)}`
+                ? `${formatBytesLocalized(locale, usedMemory)} / ${formatBytesLocalized(locale, totalMemory)}`
                 : `${ramPct.toFixed(1)} %`}
             </button>
           </div>
@@ -94,7 +90,7 @@ export function HeaderStats({
         </div>
 
         <div className="metric metric-count">
-          <span className="metric-label">Processus</span>
+          <span className="metric-label">{t("metrics.processes")}</span>
           <span className="metric-value mono">{processCount}</span>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import type { TabId } from "../types";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface ProcessTabsProps {
   active: TabId;
@@ -6,8 +7,10 @@ interface ProcessTabsProps {
 }
 
 export function ProcessTabs({ active, onChange }: ProcessTabsProps) {
+  const { t } = useLocale();
+
   return (
-    <div className="tabs" role="tablist" aria-label="Vues CPU-ZE">
+    <div className="tabs" role="tablist" aria-label={t("tabs.aria")}>
       <button
         type="button"
         role="tab"
@@ -33,7 +36,7 @@ export function ProcessTabs({ active, onChange }: ProcessTabsProps) {
         className={`tab ${active === "temp" ? "tab-active" : ""}`}
         onClick={() => onChange("temp")}
       >
-        Temp
+        {t("tabs.temp")}
       </button>
     </div>
   );

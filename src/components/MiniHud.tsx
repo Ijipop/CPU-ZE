@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { SensorReading } from "../types";
+import { useLocale } from "../i18n/LocaleContext";
+import { formatBytesLocalized } from "../i18n";
 
 interface MiniHudProps {
   totalCpu: number;
@@ -25,13 +27,6 @@ function loadRamMode(): RamMode {
   return "bytes";
 }
 
-function formatBytes(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} Go`;
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(0)} Mo`;
-}
-
 export function MiniHud({
   totalCpu,
   usedMemory,
@@ -41,6 +36,7 @@ export function MiniHud({
   gpuUtil,
   onExpand,
 }: MiniHudProps) {
+  const { locale, t } = useLocale();
   const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
   const cpuPct = Math.min(100, Math.max(0, totalCpu));
   const ramPct =
@@ -67,7 +63,10 @@ export function MiniHud({
             <span className="mono mini-value">{cpuPct.toFixed(0)}%</span>
           </div>
           <div className="mini-bar">
-            <div className="meter-fill meter-cpu" style={{ width: `${cpuPct}%` }} />
+            <div
+              className="meter-fill meter-cpu"
+              style={{ width: `${cpuPct}%` }}
+            />
           </div>
         </div>
         <div className="mini-metric">
@@ -79,14 +78,16 @@ export function MiniHud({
               onClick={toggleRam}
               title={
                 ramMode === "bytes"
-                  ? "Cliquer pour afficher le %"
-                  : "Cliquer pour afficher Go / Go"
+                  ? t("metrics.ramShowPct")
+                  : t("metrics.ramShowBytes")
               }
             >
               {ramMode === "bytes" ? (
                 <>
-                  {formatBytes(usedMemory)}
-                  <span className="mini-muted">/{formatBytes(totalMemory)}</span>
+                  {formatBytesLocalized(locale, usedMemory)}
+                  <span className="mini-muted">
+                    /{formatBytesLocalized(locale, totalMemory)}
+                  </span>
                 </>
               ) : (
                 `${ramPct.toFixed(0)}%`
@@ -94,23 +95,24 @@ export function MiniHud({
             </button>
           </div>
           <div className="mini-bar">
-            <div className="meter-fill meter-ram" style={{ width: `${ramPct}%` }} />
+            <div
+              className="meter-fill meter-ram"
+              style={{ width: `${ramPct}%` }}
+            />
           </div>
         </div>
       </div>
 
       <div className="mini-temps">
         <span className="mono">
-          CPU{" "}
-          {cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—"}
+          CPU {cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—"}
         </span>
         <span className="mono">
-          GPU{" "}
-          {gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—"}
+          GPU {gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—"}
           {gpuUtil !== null ? ` ${gpuUtil.toFixed(0)}%` : ""}
         </span>
         <button type="button" className="mini-expand" onClick={onExpand}>
-          Agrandir
+          {t("mini.expand")}
         </button>
       </div>
     </div>
