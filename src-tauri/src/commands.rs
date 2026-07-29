@@ -266,8 +266,10 @@ fn enrich_private_working_set(processes: &mut [ProcessInfo]) {
 pub fn list_processes(
     state: State<'_, AppState>,
     detail: Option<bool>,
+    enrich_pws: Option<bool>,
 ) -> Result<SystemSnapshot, String> {
     let detail = detail.unwrap_or(true);
+    let enrich = enrich_pws.unwrap_or(detail);
     static WARMED: std::sync::atomic::AtomicBool =
         std::sync::atomic::AtomicBool::new(false);
     let first = !WARMED.swap(true, std::sync::atomic::Ordering::SeqCst);
@@ -312,7 +314,7 @@ pub fn list_processes(
         // locks dropped here before any OpenProcess
     };
 
-    if detail {
+    if detail && enrich {
         enrich_private_working_set(&mut snapshot.processes);
     }
 
