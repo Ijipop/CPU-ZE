@@ -1,12 +1,10 @@
 name: publish
 
+# Manual only — local signed builds + scripts/publish-updater-json.ps1
+# are the source of truth. Auto-publish on `release` / tags was overwriting
+# GitHub assets and breaking updater signature verification.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - release
-    tags:
-      - "v*"
 
 jobs:
   publish-tauri:
