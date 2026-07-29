@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { TitleBarMenu } from "./TitleBarMenu";
+import { hideMainWindowToTray } from "../hooks/useMinimizeToTray";
 import { useLocale } from "../i18n/LocaleContext";
 
 interface TitleBarProps {
@@ -99,7 +100,13 @@ export function TitleBar({
               className="tb-btn"
               title={t("title.minimize")}
               aria-label={t("title.minimize")}
-              onClick={() => void win.minimize()}
+              onClick={() => {
+                if (minimizeToTray) {
+                  void hideMainWindowToTray();
+                } else {
+                  void win.minimize();
+                }
+              }}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
                 <path fill="currentColor" d="M1 5h8v1H1z" />

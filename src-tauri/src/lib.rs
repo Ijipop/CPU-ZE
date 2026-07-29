@@ -8,7 +8,7 @@ mod win_metrics;
 use commands::{
     elevated_autostart_disable, elevated_autostart_enable, elevated_autostart_is_enabled,
     get_temperatures, install_pawnio, kill_process, list_processes, pawnio_status,
-    relaunch_elevated, AppState,
+    relaunch_elevated, set_hidden_from_taskbar, AppState,
 };
 use precision::CpuTracker;
 use std::sync::Mutex;
@@ -44,7 +44,8 @@ pub fn run() {
             relaunch_elevated,
             elevated_autostart_is_enabled,
             elevated_autostart_enable,
-            elevated_autostart_disable
+            elevated_autostart_disable,
+            set_hidden_from_taskbar
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

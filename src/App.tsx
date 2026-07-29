@@ -202,9 +202,15 @@ function AppInner() {
   const morphingRef = useRef(false);
   const skipPersist = useRef(false);
   const frozen = useCtrlHeld();
-  const { snapshot, error, loading, kill } = useProcesses(1000, frozen && !compact);
+  const processDetail = !compact && (tab === "cpu" || tab === "ram");
+  const processInterval = compact ? 2000 : tab === "temp" ? 2500 : 1200;
+  const { snapshot, error, loading, kill } = useProcesses(
+    processInterval,
+    frozen && !compact,
+    { detail: processDetail, pauseWhenHidden: true },
+  );
   const tempsEnabled = compact || tab === "temp";
-  const tempsInterval = tab === "temp" && !compact ? 1000 : 2000;
+  const tempsInterval = tab === "temp" && !compact ? 1500 : 2500;
   const {
     snapshot: temps,
     error: tempError,
@@ -507,7 +513,7 @@ function AppInner() {
               totalCpu={snapshot.totalCpu}
               usedMemory={snapshot.usedMemory}
               totalMemory={snapshot.totalMemory}
-              processCount={snapshot.processes.length}
+              processCount={snapshot.processCount || snapshot.processes.length}
             />
 
             <ProcessTabs active={tab} onChange={setTab} />
