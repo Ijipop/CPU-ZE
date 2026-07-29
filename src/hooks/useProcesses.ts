@@ -35,19 +35,51 @@ export function useProcesses(
   const frozenRef = useRef(frozen);
   const inFlight = useRef(false);
   const detailRef = useRef(detail);
+  /** Skip PWS enrichment on the first detail tick after light mode (fast expand). */
+  const skipEnrichOnce = useRef(false);
+  const wasDetail = useRef(detail);
   frozenRef.current = frozen;
   detailRef.current = detail;
 
-  const refresh = useCallback(async () => {
-    if (frozenRef.current || inFlight.current) return;
+  useEffect(() => {
+    if (!wasDetail.current && detail) {
+      skipEnrichOnce.current = true;
+    }
+    wasDetail.current = detail;
+  }, [detail]);
+
+  const refresh = useCallback(async (opts?: { force?: boolean; enrichPws?: boolean }) => {
+    if (frozenRef.current) return;
+    if (inFlight.current && !opts?.force) return;
     inFlight.current = true;
+    const enrich =
+      opts?.enrichPws ??
+      (detailRef.current
+        ? (() => {
+            if (skipEnrichOnce.current) {
+              skipEnrichOnce.current = false;
+              return false;
+            }
+            return true;
+          })()
+        : false);
     try {
       const data = await invoke<SystemSnapshot>("list_processes", {
         detail: detailRef.current,
+        enrichPws: enrich,
       });
       if (!alive.current) return;
       if (frozenRef.current) return;
-      setSnapshot(data);
+      setSnapshot((prev) => {
+        // Light mode: keep last process rows so expand isn't an empty table.
+        if (!detailRef.current && data.processes.length === 0 && prev.processes.length > 0) {
+          return {
+            ...data,
+            processes: prev.processes,
+          };
+        }
+        return data;
+      });
       setError(null);
     } catch (e) {
       if (!alive.current) return;
@@ -62,7 +94,7 @@ export function useProcesses(
     async (pid: number) => {
       await invoke("kill_process", { pid });
       if (!frozenRef.current) {
-        await refresh();
+        await refresh({ force: true, enrichPws: true });
       }
     },
     [refresh],
@@ -89,7 +121,6 @@ export function useProcesses(
         }
       });
     })();
-    // Also poll visibility lightly — hide-to-tray may not fire focus events.
     const id = window.setInterval(() => {
       void win.isVisible().then(setVisible).catch(() => {});
     }, 2000);
@@ -106,7 +137,7 @@ export function useProcesses(
         alive.current = false;
       };
     }
-    void refresh();
+    void refresh({ force: true });
     const id = window.setInterval(() => {
       if (!frozenRef.current) void refresh();
     }, intervalMs);
@@ -116,10 +147,9 @@ export function useProcesses(
     };
   }, [refresh, intervalMs, visible, pauseWhenHidden, detail]);
 
-  // When releasing Ctrl, pull a fresh snapshot immediately.
   useEffect(() => {
     if (!frozen && (!pauseWhenHidden || visible)) {
-      void refresh();
+      void refresh({ force: true });
     }
   }, [frozen, refresh, pauseWhenHidden, visible]);
 

@@ -45,16 +45,6 @@ import "./styles.css";
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 84 };
 const COMPACT_SIZE = { width: 320, height: 90 };
-/** Outer window morph — content is veiled, so a soft desktop resize is fine. */
-const MORPH_RESIZE_MS = 110;
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
 
 function nextPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -62,64 +52,15 @@ function nextPaint(): Promise<void> {
   });
 }
 
-/** Animate outer bounds. Prefer keeping top-left fixed to avoid ghost trails. */
-function animateWindowBounds(
+/** One-shot outer bounds — multi-frame morph is too slow via Tauri IPC on Windows. */
+async function snapWindowBounds(
   win: ReturnType<typeof getCurrentWindow>,
-  from: PhysicalGeom,
   to: PhysicalGeom,
-  durationMs: number,
 ): Promise<void> {
-  if (durationMs <= 0) {
-    return Promise.all([
-      win.setSize(new PhysicalSize(to.width, to.height)),
-      win.setPosition(new PhysicalPosition(to.x, to.y)),
-    ]).then(() => undefined);
-  }
-
-  return new Promise((resolve) => {
-    const t0 = performance.now();
-    let lastApply = 0;
-    let inflight = false;
-    let pending: { w: number; h: number; x: number; y: number; done: boolean } | null =
-      null;
-
-    const flush = () => {
-      if (inflight || !pending) return;
-      const next = pending;
-      pending = null;
-      inflight = true;
-      void Promise.all([
-        win.setSize(new PhysicalSize(Math.max(1, next.w), Math.max(1, next.h))),
-        win.setPosition(new PhysicalPosition(next.x, next.y)),
-      ]).finally(() => {
-        inflight = false;
-        if (pending) flush();
-        else if (next.done) resolve();
-      });
-    };
-
-    const apply = (w: number, h: number, x: number, y: number, done: boolean) => {
-      pending = { w, h, x, y, done };
-      flush();
-    };
-
-    const frame = (now: number) => {
-      const t = Math.min(1, (now - t0) / durationMs);
-      const e = easeOutCubic(t);
-      const w = Math.round(from.width + (to.width - from.width) * e);
-      const h = Math.round(from.height + (to.height - from.height) * e);
-      // Keep origin stable unless clamp moved it — lerp only if needed.
-      const x = Math.round(from.x + (to.x - from.x) * e);
-      const y = Math.round(from.y + (to.y - from.y) * e);
-      const done = t >= 1;
-      if (done || now - lastApply >= 16) {
-        lastApply = now;
-        apply(w, h, x, y, done);
-      }
-      if (!done) requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
-  });
+  await Promise.all([
+    win.setSize(new PhysicalSize(Math.max(1, to.width), Math.max(1, to.height))),
+    win.setPosition(new PhysicalPosition(to.x, to.y)),
+  ]);
 }
 
 function pointOnMonitor(x: number, y: number, m: Monitor): boolean {
@@ -198,7 +139,9 @@ function AppInner() {
   const morphingRef = useRef(false);
   const skipPersist = useRef(false);
   const frozen = useCtrlHeld();
-  const processDetail = !compact && (tab === "cpu" || tab === "ram");
+  // Defer detail polls until morph finishes so expand isn't blocked by OpenProcess.
+  const processDetail =
+    !compact && !morphing && (tab === "cpu" || tab === "ram");
   const processInterval = compact ? 2000 : tab === "temp" ? 2500 : 1200;
   const { snapshot, error, loading, kill } = useProcesses(
     processInterval,
@@ -326,16 +269,11 @@ function AppInner() {
   const enterCompact = useCallback(async () => {
     if (morphingRef.current || compactRef.current) return;
     const win = getCurrentWindow();
-    const reduced = prefersReducedMotion();
     try {
       morphingRef.current = true;
       setMorphing(true);
       skipPersist.current = true;
       await nextPaint();
-
-      // Swap UI under the veil while the window resizes.
-      compactRef.current = true;
-      setCompact(true);
 
       const size = await win.outerSize();
       const pos = await win.outerPosition();
@@ -346,19 +284,19 @@ function AppInner() {
       const sf = await win.scaleFactor();
       const targetW = Math.round(COMPACT_SIZE.width * sf);
       const targetH = Math.round(COMPACT_SIZE.height * sf);
-      // Prefer same top-left — only nudge if the shrunk window would clip.
       const stay = await stayOnCurrentMonitor(pos.x, pos.y, targetW, targetH);
-      const from = g;
       const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
 
       await Promise.all([
         win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
         win.setAlwaysOnTop(true),
+        snapWindowBounds(win, to),
       ]);
-      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
 
       compactPos.current = { x: to.x, y: to.y };
       saveCompactPos(compactPos.current);
+      compactRef.current = true;
+      setCompact(true);
       await nextPaint();
     } catch (e) {
       console.error(e);
@@ -372,18 +310,12 @@ function AppInner() {
   const exitCompact = useCallback(async () => {
     if (morphingRef.current || !compactRef.current) return;
     const win = getCurrentWindow();
-    const reduced = prefersReducedMotion();
     try {
       morphingRef.current = true;
       setMorphing(true);
       skipPersist.current = true;
       await nextPaint();
 
-      // Swap UI under the veil while the window resizes.
-      compactRef.current = false;
-      setCompact(false);
-
-      const size = await win.outerSize();
       const pos = await win.outerPosition();
       compactPos.current = { x: pos.x, y: pos.y };
       saveCompactPos(compactPos.current);
@@ -392,22 +324,17 @@ function AppInner() {
       const width = g?.width ?? Math.round(980 * (await win.scaleFactor()));
       const height = g?.height ?? Math.round(680 * (await win.scaleFactor()));
       const stay = await stayOnCurrentMonitor(pos.x, pos.y, width, height);
-      const from = {
-        x: pos.x,
-        y: pos.y,
-        width: size.width,
-        height: size.height,
-      };
       const to = { x: stay.x, y: stay.y, width, height };
 
-      // Never raise NORMAL_MIN before grow — that snaps and ghosts the micro frame.
       await Promise.all([
         win.setAlwaysOnTop(false),
         win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
+        snapWindowBounds(win, to),
       ]);
-      await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
-
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
+
+      compactRef.current = false;
+      setCompact(false);
       normalGeom.current = to;
       saveNormalGeom(to);
       await nextPaint();
