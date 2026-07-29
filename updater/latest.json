@@ -1,11 +1,11 @@
 {
-    "version": "0.4.6",
-    "notes": "## What's new\n- Options **Ouvrir au démarrage** et **Démarrer en mode micro** déplacées dans Menu\n- Footer allégé (tip + MAJ)\n\n## Test\n1. Installe 0.4.6\n2. Menu → coche/décoche autostart, micro, tray\n3. Footer sans les anciennes cases",
-    "pub_date": "2026-07-29T17:19:34Z",
-    "platforms": {
-        "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVZLc1ZXWHhpOU5IOXV0MFVkK0lsbEpHZTkvSzNPWE5nOG45M1NBWXc0NTdkT3ROUURuMUhQUmZITXFSS3VZZzhJUWs1Z2ZkNmFnb3hFU1NQdEkzK1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzQ1NTM5CWZpbGU6Q1BVLVpFXzAuNC42X3g2NC1zZXR1cC5leGUKTVJ1YjFmSFlXYXBKd05qNkdjc3pRaW1ITEo5eVcwcVlxdHpxaDBOZzlYWXpkZFd6UEJFcERkUGZhdHh0ODhTaGI1bFRhV3NGYk1HaDhXdEExN2hlRFE9PQo=",
-            "url": "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.6/CPU-ZE_0.4.6_x64-setup.exe"
-        }
-    }
+    "version":  "0.4.6",
+    "notes":  "## What\u0027s new\n- Options **Ouvrir au démarrage** et **Démarrer en mode micro** déplacées dans Menu\n- Footer allégé (tip + MAJ)\n\n## Test\n1. Installe 0.4.6\n2. Menu → coche/décoche autostart, micro, tray\n3. Footer sans les anciennes cases",
+    "pub_date":  "2026-07-29T17:33:51Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVZLc1ZXWHhpOU5IOXV0MFVkK0lsbEpHZTkvSzNPWE5nOG45M1NBWXc0NTdkT3ROUURuMUhQUmZITXFSS3VZZzhJUWs1Z2ZkNmFnb3hFU1NQdEkzK1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzQ1NTM5CWZpbGU6Q1BVLVpFXzAuNC42X3g2NC1zZXR1cC5leGUKTVJ1YjFmSFlXYXBKd05qNkdjc3pRaW1ITEo5eVcwcVlxdHpxaDBOZzlYWXpkZFd6UEJFcERkUGZhdHh0ODhTaGI1bFRhV3NGYk1HaDhXdEExN2hlRFE9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.6/CPU-ZE_0.4.6_x64-setup.exe"
+                                         }
+                  }
 }
