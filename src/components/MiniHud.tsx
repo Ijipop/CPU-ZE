@@ -26,6 +26,15 @@ function loadRamMode(): RamMode {
   return "bytes";
 }
 
+function heatClass(celsius: number | null | undefined): string {
+  if (celsius === null || celsius === undefined || Number.isNaN(celsius)) {
+    return "";
+  }
+  if (celsius >= 85) return "heat-hot";
+  if (celsius >= 70) return "heat-warm";
+  return "heat-cool";
+}
+
 export function MiniHud({
   totalCpu,
   usedMemory,
@@ -51,11 +60,6 @@ export function MiniHud({
       return next;
     });
   };
-
-  const cpuTempText = cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—";
-  const gpuTempText = gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—";
-  const gpuUtilText =
-    gpuUtil !== null ? ` · ${gpuUtil.toFixed(0)}%` : "";
 
   return (
     <div className="mini-hud">
@@ -110,15 +114,23 @@ export function MiniHud({
         <div className="mini-temp mono">
           <span className="mini-temp-label">CPU</span>
           <span className="mini-temp-sep">–</span>
-          <span className="mini-temp-value">{cpuTempText}</span>
+          <span
+            className={`mini-temp-value ${heatClass(cpuTemp?.celsius)}`}
+          >
+            {cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—"}
+          </span>
         </div>
         <div className="mini-temp mono">
           <span className="mini-temp-label">GPU</span>
           <span className="mini-temp-sep">–</span>
-          <span className="mini-temp-value">
-            {gpuTempText}
-            {gpuUtilText}
+          <span
+            className={`mini-temp-value ${heatClass(gpuTemp?.celsius)}`}
+          >
+            {gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—"}
           </span>
+          {gpuUtil !== null && (
+            <span className="mini-temp-util">· {gpuUtil.toFixed(0)}%</span>
+          )}
         </div>
       </div>
     </div>
