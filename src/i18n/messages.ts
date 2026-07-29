@@ -16,7 +16,7 @@ export const fr = {
   "title.close": "Fermer",
   "title.menu": "Menu",
 
-  "tray.minimizeToTray": "Réduire dans les icônes cachées",
+  "tray.minimizeToTray": "Hors barre des tâches (icônes cachées)",
   "tray.show": "Afficher CPU-ZE",
   "tray.quit": "Quitter",
 
@@ -92,6 +92,7 @@ export const fr = {
   "table.killConfirm": "Terminer « {name} » (PID {pid}) ?",
   "table.killBtn": "Terminer",
   "table.killed": "« {name} » terminé",
+  "table.killedSelf": "Fermeture de CPU-ZE…",
 
   "app.loadingProcesses": "Chargement des processus…",
 
@@ -166,7 +167,7 @@ export const fr = {
   "temp.readyButFail":
     "PawnIO est prêt mais la lecture a échoué — CPU non supporté ou accès PCI occupé. Réessaie dans un instant.",
 
-  "err.killSelf": "Impossible de terminer CPU-ZE lui-même",
+  "err.killSelf": "CPU-ZE se ferme…",
   "err.systemProtected": "Processus système protégé",
   "err.criticalProtected": "Processus critique protégé : {detail}",
   "err.killDenied":
@@ -190,7 +191,7 @@ export const en: Record<MessageKey, string> = {
   "title.close": "Close",
   "title.menu": "Menu",
 
-  "tray.minimizeToTray": "Minimize to hidden icons",
+  "tray.minimizeToTray": "Hide from taskbar (system tray)",
   "tray.show": "Show CPU-ZE",
   "tray.quit": "Quit",
 
@@ -266,6 +267,7 @@ export const en: Record<MessageKey, string> = {
   "table.killConfirm": "End “{name}” (PID {pid})?",
   "table.killBtn": "End task",
   "table.killed": "“{name}” ended",
+  "table.killedSelf": "Closing CPU-ZE…",
 
   "app.loadingProcesses": "Loading processes…",
 
@@ -340,7 +342,7 @@ export const en: Record<MessageKey, string> = {
   "temp.readyButFail":
     "PawnIO is ready but the read failed — unsupported CPU or busy PCI access. Try again in a moment.",
 
-  "err.killSelf": "Cannot end CPU-ZE itself",
+  "err.killSelf": "Closing CPU-ZE…",
   "err.systemProtected": "Protected system process",
   "err.criticalProtected": "Protected critical process: {detail}",
   "err.killDenied":

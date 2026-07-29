@@ -15,6 +15,8 @@ export interface SystemSnapshot {
   usedMemory: number;
   totalMemory: number;
   cpuCount: number;
+  /** Live process count (available even in light/detail=false mode). */
+  processCount: number;
   processes: ProcessInfo[];
   metricsNote: string;
 }

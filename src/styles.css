@@ -1252,8 +1252,9 @@ body {
 }
 
 .temp-spark-wrap {
-  flex: 1 1 auto;
-  min-height: clamp(48px, 12vh, 120px);
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 140px;
   display: flex;
   align-items: stretch;
   margin: 2px 0 4px;
@@ -1332,6 +1333,7 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(4px, 0.8vh, 8px);
   margin-top: auto;
+  flex: 0 0 auto;
   flex-shrink: 0;
 }
 
@@ -1384,13 +1386,27 @@ body {
   }
 }
 
-/* Per-card compression when the window (or stacked half) is very short. */
-@container temp-card (max-height: 240px) {
+/* Per-card compression: spark yields first; min/avg/max stay until very small. */
+@container temp-card (max-height: 280px) {
   .temp-card-label {
     display: none;
   }
 
   .temp-current-caption {
+    display: none;
+  }
+
+  .temp-spark-wrap {
+    max-height: 72px;
+  }
+
+  .temp-extreme {
+    padding: 5px 6px;
+  }
+}
+
+@container temp-card (max-height: 230px) {
+  .temp-spark-wrap {
     display: none;
   }
 
@@ -1402,6 +1418,10 @@ body {
     min-width: 0;
   }
 
+  .temp-util-label {
+    display: none;
+  }
+
   .temp-extreme {
     padding: 4px 6px;
   }
@@ -1409,15 +1429,14 @@ body {
   .temp-extreme-value {
     font-size: 0.9rem;
   }
+
+  .temp-meter {
+    height: 3px;
+  }
 }
 
-@container temp-card (max-height: 180px) {
-  .temp-spark-wrap {
-    min-height: 28px;
-  }
-
+@container temp-card (max-height: 170px) {
   .temp-extremes {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
   }
 
@@ -1429,24 +1448,13 @@ body {
     font-size: 0.82rem;
   }
 
-  .temp-meter {
-    height: 3px;
-  }
-
-  .temp-util {
+  .temp-extreme {
+    padding: 3px 5px;
     gap: 0;
-  }
-
-  .temp-util-label {
-    display: none;
   }
 }
 
-@container temp-card (max-height: 140px) {
-  .temp-spark-wrap {
-    display: none;
-  }
-
+@container temp-card (max-height: 125px) {
   .temp-extremes {
     display: none;
   }

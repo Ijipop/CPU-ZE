@@ -3,7 +3,9 @@ use crate::win_metrics::{self, SystemCpuTracker};
 use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 use nvml_wrapper::Nvml;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use sysinfo::{
     Components, Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind,
 };
@@ -40,6 +42,8 @@ pub struct SystemSnapshot {
     pub used_memory: u64,
     pub total_memory: u64,
     pub cpu_count: usize,
+    /// Live process count (even when `processes` is omitted in light mode).
+    pub process_count: usize,
     pub processes: Vec<ProcessInfo>,
     /// How metrics are computed (shown in UI).
     pub metrics_note: String,
@@ -75,6 +79,28 @@ const CRITICAL_PROCESS_NAMES: &[&str] = &[
     "dwm.exe",
 ];
 
+/// Cap Win32 OpenProcess calls per tick — hung targets can block for seconds.
+const PWS_MAX_QUERIES_PER_TICK: usize = 48;
+const PWS_CACHE_TTL: Duration = Duration::from_secs(2);
+
+struct PwsCache {
+    map: HashMap<u32, (Instant, u64)>,
+}
+
+impl PwsCache {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
+}
+
+fn pws_cache() -> &'static Mutex<PwsCache> {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Mutex<PwsCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(PwsCache::new()))
+}
+
 fn lock_err(what: &str) -> String {
     format!("Verrou {what} empoisonné — redémarre CPU-ZE")
 }
@@ -92,10 +118,22 @@ fn refresh_system(sys: &mut System) {
     );
 }
 
+fn refresh_system_light(sys: &mut System) {
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+    // Process list only for the count — skip per-process CPU/memory sampling.
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing(),
+    );
+}
+
 fn build_snapshot(
     sys: &System,
     tracker: &mut CpuTracker,
     system_cpu: &mut SystemCpuTracker,
+    detail: bool,
 ) -> SystemSnapshot {
     let cpu_count = sys.cpus().len().max(1) as u64;
     let total_cpu = system_cpu.update();
@@ -104,7 +142,21 @@ fn build_snapshot(
         .map(|m| (m.used_bytes, m.total_bytes))
         .unwrap_or_else(|| (sys.used_memory(), sys.total_memory()));
 
-    let mut live_pids = Vec::with_capacity(sys.processes().len());
+    let process_count = sys.processes().len();
+
+    if !detail {
+        return SystemSnapshot {
+            total_cpu,
+            used_memory,
+            total_memory,
+            cpu_count: cpu_count as usize,
+            process_count,
+            processes: Vec::new(),
+            metrics_note: "CPU = GetSystemTimes · RAM = GlobalMemoryStatusEx".into(),
+        };
+    }
+
+    let mut live_pids = Vec::with_capacity(process_count);
     let mut processes: Vec<ProcessInfo> = sys
         .processes()
         .iter()
@@ -116,9 +168,8 @@ fn build_snapshot(
 
             let private_bytes = process.virtual_memory();
             let working_set_bytes = process.memory();
-            // Prefer Private Working Set (TM Memory column); fall back to private bytes.
-            let memory_bytes =
-                win_metrics::private_working_set(pid_u).unwrap_or(private_bytes);
+            // Prefer Private Working Set later; start from working set (not commit).
+            let memory_bytes = working_set_bytes;
 
             ProcessInfo {
                 pid: pid_u,
@@ -149,19 +200,79 @@ fn build_snapshot(
         used_memory,
         total_memory,
         cpu_count: cpu_count as usize,
+        process_count: processes.len(),
         processes,
         metrics_note: "CPU = GetProcessTimes/QPC · RAM = Private Working Set (colonne Mémoire TM)"
             .into(),
     }
 }
 
+/// Enrich with Private Working Set outside the sysinfo lock, with TTL + query cap.
+fn enrich_private_working_set(processes: &mut [ProcessInfo]) {
+    let Ok(mut cache) = pws_cache().lock() else {
+        return;
+    };
+    let now = Instant::now();
+    cache.map.retain(|_, (t, _)| now.duration_since(*t) < PWS_CACHE_TTL * 4);
+
+    // Prefer refreshing the hungriest / hottest first (visible near top of either sort).
+    let mut order: Vec<usize> = (0..processes.len()).collect();
+    order.sort_by(|&a, &b| {
+        let pa = &processes[a];
+        let pb = &processes[b];
+        pb.working_set_bytes
+            .cmp(&pa.working_set_bytes)
+            .then_with(|| {
+                pb.cpu
+                    .partial_cmp(&pa.cpu)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    });
+
+    let mut queries = 0usize;
+    for idx in order {
+        let proc = &mut processes[idx];
+        if let Some((t, bytes)) = cache.map.get(&proc.pid) {
+            if now.duration_since(*t) < PWS_CACHE_TTL {
+                proc.memory_bytes = *bytes;
+                proc.memory_mb = *bytes as f64 / (1024.0 * 1024.0);
+                continue;
+            }
+        }
+
+        if queries >= PWS_MAX_QUERIES_PER_TICK {
+            if let Some((_, bytes)) = cache.map.get(&proc.pid) {
+                proc.memory_bytes = *bytes;
+                proc.memory_mb = *bytes as f64 / (1024.0 * 1024.0);
+            }
+            continue;
+        }
+
+        queries += 1;
+        if let Some(bytes) = win_metrics::private_working_set(proc.pid) {
+            cache.map.insert(proc.pid, (now, bytes));
+            proc.memory_bytes = bytes;
+            proc.memory_mb = bytes as f64 / (1024.0 * 1024.0);
+        } else {
+            // Keep provisional working set; avoid hammering denied PIDs.
+            cache
+                .map
+                .insert(proc.pid, (now, proc.working_set_bytes));
+        }
+    }
+}
+
 #[tauri::command]
-pub fn list_processes(state: State<'_, AppState>) -> Result<SystemSnapshot, String> {
+pub fn list_processes(
+    state: State<'_, AppState>,
+    detail: Option<bool>,
+) -> Result<SystemSnapshot, String> {
+    let detail = detail.unwrap_or(true);
     static WARMED: std::sync::atomic::AtomicBool =
         std::sync::atomic::AtomicBool::new(false);
     let first = !WARMED.swap(true, std::sync::atomic::Ordering::SeqCst);
 
-    if first {
+    if first && detail {
         {
             let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
             let mut tracker = state
@@ -178,21 +289,34 @@ pub fn list_processes(state: State<'_, AppState>) -> Result<SystemSnapshot, Stri
                 tracker.seed(pid.as_u32(), process.accumulated_cpu_time());
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(200));
     }
 
-    let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
-    let mut tracker = state
-        .cpu_tracker
-        .lock()
-        .map_err(|_| lock_err("cpu_tracker"))?;
-    let mut system_cpu = state
-        .system_cpu
-        .lock()
-        .map_err(|_| lock_err("system_cpu"))?;
+    let mut snapshot = {
+        let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
+        let mut tracker = state
+            .cpu_tracker
+            .lock()
+            .map_err(|_| lock_err("cpu_tracker"))?;
+        let mut system_cpu = state
+            .system_cpu
+            .lock()
+            .map_err(|_| lock_err("system_cpu"))?;
 
-    refresh_system(&mut sys);
-    Ok(build_snapshot(&sys, &mut tracker, &mut system_cpu))
+        if detail {
+            refresh_system(&mut sys);
+        } else {
+            refresh_system_light(&mut sys);
+        }
+        build_snapshot(&sys, &mut tracker, &mut system_cpu, detail)
+        // locks dropped here before any OpenProcess
+    };
+
+    if detail {
+        enrich_private_working_set(&mut snapshot.processes);
+    }
+
+    Ok(snapshot)
 }
 
 fn is_critical_process_name(name: &str) -> bool {
@@ -205,7 +329,13 @@ fn is_critical_process_name(name: &str) -> bool {
 #[tauri::command]
 pub fn kill_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> {
     if pid == std::process::id() {
-        return Err("Impossible de terminer CPU-ZE lui-même".into());
+        // Allow ending this instance from the list (recovery when the UI is wedged).
+        // Exit after returning Ok so the frontend can show feedback briefly.
+        std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_millis(80));
+            std::process::exit(0);
+        });
+        return Ok(());
     }
     if pid == 0 || pid == 4 {
         return Err("Processus système protégé".into());
@@ -320,4 +450,59 @@ pub fn get_temperatures(state: State<'_, AppState>) -> Result<TemperatureSnapsho
         gpu: read_gpu_temperature(&mut nvml),
         gpu_util: read_gpu_utilization(&mut nvml),
     })
+}
+
+/// Hide or restore the main window on the Windows taskbar.
+/// Uses WS_EX_TOOLWINDOW because Tauri's setSkipTaskbar is unreliable on Win10/11.
+#[tauri::command]
+pub fn set_hidden_from_taskbar(app: tauri::AppHandle, hide: bool) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use tauri::Manager;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, SWP_FRAMECHANGED,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_EX_APPWINDOW,
+            WS_EX_TOOLWINDOW,
+        };
+
+        let window = app
+            .get_webview_window("main")
+            .ok_or_else(|| "Fenêtre principale introuvable".to_string())?;
+
+        let hwnd = HWND(
+            window
+                .hwnd()
+                .map_err(|e| format!("hwnd: {e}"))?
+                .0,
+        );
+
+        unsafe {
+            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let new_style = if hide {
+                (style & !(WS_EX_APPWINDOW.0 as isize)) | (WS_EX_TOOLWINDOW.0 as isize)
+            } else {
+                (style & !(WS_EX_TOOLWINDOW.0 as isize)) | (WS_EX_APPWINDOW.0 as isize)
+            };
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_style);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+
+        let _ = window.set_skip_taskbar(hide);
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = (app, hide);
+    }
+
+    Ok(())
 }

@@ -147,7 +147,13 @@ export function ProcessTable({
     setKillError(null);
     try {
       await onKill(process.pid);
-      toast.push(t("table.killed", { name: process.name }), "ok");
+      const self =
+        /^cpu-ze(\.exe)?$/i.test(process.name) ||
+        process.name.toLowerCase() === "cpu-ze";
+      toast.push(
+        self ? t("table.killedSelf") : t("table.killed", { name: process.name }),
+        "ok",
+      );
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
       const msg = localizeBackendError(locale, raw);

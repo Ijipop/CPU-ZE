@@ -256,7 +256,8 @@ export function TemperaturePanel({
     return () => {
       alive = false;
     };
-  }, [cpu]);
+    // Only on mount / after install flow — not on every temp sample.
+  }, []);
 
   useEffect(() => {
     if (!awaitingDriver) return;
