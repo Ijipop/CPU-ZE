@@ -78,8 +78,8 @@ body {
 }
 
 .app-compact {
-  padding: var(--titlebar-h) 8px 4px;
-  gap: 4px;
+  padding: var(--titlebar-h) 8px 2px;
+  gap: 2px;
 }
 
 .app-body {
@@ -1677,8 +1677,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 5px;
-  padding-top: 2px;
+  gap: 4px;
+  padding-top: 1px;
 }
 
 .mini-row {
@@ -1696,30 +1696,30 @@ body {
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .mini-label {
   color: var(--text-mute);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .mini-value {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
 .mini-muted {
   color: var(--text-mute);
   font-weight: 500;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
 }
 
 .mini-bar {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
@@ -1732,32 +1732,39 @@ body {
 }
 
 .mini-temps {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  color: var(--text-dim);
-  font-size: 0.7rem;
   min-height: 0;
 }
 
-.mini-expand {
-  margin-left: auto;
-  appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(46, 196, 182, 0.12);
-  color: var(--accent);
-  font-family: var(--font-ui);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 5px;
-  cursor: pointer;
+.mini-temp {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  line-height: 1.1;
 }
 
-.mini-expand:hover {
-  background: rgba(46, 196, 182, 0.22);
+.mini-temp-label {
+  color: var(--text-mute);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mini-temp-sep {
+  color: var(--text-mute);
+  opacity: 0.7;
+}
+
+.mini-temp-value {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* —— Modals / toasts / chrome polish —— */

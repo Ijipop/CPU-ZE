@@ -10,7 +10,6 @@ interface MiniHudProps {
   cpuTemp: SensorReading | null;
   gpuTemp: SensorReading | null;
   gpuUtil: number | null;
-  onExpand: () => void;
 }
 
 type RamMode = "bytes" | "pct";
@@ -34,7 +33,6 @@ export function MiniHud({
   cpuTemp,
   gpuTemp,
   gpuUtil,
-  onExpand,
 }: MiniHudProps) {
   const { locale, t } = useLocale();
   const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
@@ -53,6 +51,11 @@ export function MiniHud({
       return next;
     });
   };
+
+  const cpuTempText = cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—";
+  const gpuTempText = gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—";
+  const gpuUtilText =
+    gpuUtil !== null ? ` · ${gpuUtil.toFixed(0)}%` : "";
 
   return (
     <div className="mini-hud">
@@ -104,16 +107,19 @@ export function MiniHud({
       </div>
 
       <div className="mini-temps">
-        <span className="mono">
-          CPU {cpuTemp ? `${cpuTemp.celsius.toFixed(0)}°` : "—"}
-        </span>
-        <span className="mono">
-          GPU {gpuTemp ? `${gpuTemp.celsius.toFixed(0)}°` : "—"}
-          {gpuUtil !== null ? ` ${gpuUtil.toFixed(0)}%` : ""}
-        </span>
-        <button type="button" className="mini-expand" onClick={onExpand}>
-          {t("mini.expand")}
-        </button>
+        <div className="mini-temp mono">
+          <span className="mini-temp-label">CPU</span>
+          <span className="mini-temp-sep">–</span>
+          <span className="mini-temp-value">{cpuTempText}</span>
+        </div>
+        <div className="mini-temp mono">
+          <span className="mini-temp-label">GPU</span>
+          <span className="mini-temp-sep">–</span>
+          <span className="mini-temp-value">
+            {gpuTempText}
+            {gpuUtilText}
+          </span>
+        </div>
       </div>
     </div>
   );

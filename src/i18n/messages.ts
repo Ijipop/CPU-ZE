@@ -91,8 +91,6 @@ export const fr = {
 
   "app.loadingProcesses": "Chargement des processus…",
 
-  "mini.expand": "Agrandir",
-
   "about.body":
     "Mini Task Manager Windows — CPU, RAM et températures, léger et rapide.",
   "about.cpuSensors": "Capteurs CPU",
@@ -262,8 +260,6 @@ export const en: Record<MessageKey, string> = {
   "table.killed": "“{name}” ended",
 
   "app.loadingProcesses": "Loading processes…",
-
-  "mini.expand": "Expand",
 
   "about.body":
     "Windows Mini Task Manager — CPU, RAM and temperatures, light and fast.",
