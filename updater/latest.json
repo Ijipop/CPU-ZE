@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.5",
-    "notes":  "## What\u0027s new\r\n- Min / moy / max Temp continuent de s\u0027accumuler en mode micro (et hors onglet Temp)\r\n- Morph micro ↔ normal plus rapide (~110 ms)\r\n\r\n## Test\r\n1. Installe 0.4.5\r\n2. Onglet Temp → noter min/max → micro quelques minutes → démicro → valeurs mises à jour\r\n3. Alt+Entrée micro/démicro plus snappy",
-    "pub_date":  "2026-07-29T16:59:20Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVh4WWp0Z0N3b2hqQmlRWmt6blVxV1VCRjVlY05qQTg5WWFUTjVRaFArS1g2ZFo1a3pzTmNNTjNwWDQ4cEVscmlmU2tRNERycEorNG00UWx2cFhWaVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzQ0MzEwCWZpbGU6Q1BVLVpFXzAuNC41X3g2NC1zZXR1cC5leGUKdENQRGtBV1lJQTE3bDlZWDJyTjlqZ2xsNHRzZ012K3pHOTZVUGJ4SXprYVZOd09KaHUwalVzK2pReHVWNXNRQlBFSFRQcWhPdWxRM0I2SGZJS0FkQnc9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.5/CPU-ZE_0.4.5_x64-setup.exe"
-                                         }
-                  }
+    "version": "0.4.5",
+    "notes": "## What's new\n- Min / moy / max Temp continuent de s'accumuler en mode micro (et hors onglet Temp)\n- Morph micro ↔ normal plus rapide (~110 ms)\n\n## Test\n1. Installe 0.4.5\n2. Onglet Temp → noter min/max → micro quelques minutes → démicro → valeurs mises à jour\n3. Alt+Entrée micro/démicro plus snappy",
+    "pub_date": "2026-07-29T16:59:20Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVh4WWp0Z0N3b2hqQmlRWmt6blVxV1VCRjVlY05qQTg5WWFUTjVRaFArS1g2ZFo1a3pzTmNNTjNwWDQ4cEVscmlmU2tRNERycEorNG00UWx2cFhWaVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzQ0MzEwCWZpbGU6Q1BVLVpFXzAuNC41X3g2NC1zZXR1cC5leGUKdENQRGtBV1lJQTE3bDlZWDJyTjlqZ2xsNHRzZ012K3pHOTZVUGJ4SXprYVZOd09KaHUwalVzK2pReHVWNXNRQlBFSFRQcWhPdWxRM0I2SGZJS0FkQnc9PQo=",
+            "url": "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.5/CPU-ZE_0.4.5_x64-setup.exe"
+        }
+    }
 }
