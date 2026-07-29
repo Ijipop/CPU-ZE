@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.2",
-    "notes":  "## What\u0027s new\n- Mode **micro** : °C colorés selon la chaleur (vert \u003c70, jaune ≥70, rouge ≥85)\n- Seuls les chiffres de température sont teintés (pas les labels / %)\n- Temps toujours collés en bas du HUD\n\n## Test\n1. Installe 0.4.2\n2. Mode micro → vérifie la couleur des °C\n3. Temps bien séparés en bas, pas collés aux barres",
-    "pub_date":  "2026-07-29T13:52:48Z",
+    "version":  "0.4.3",
+    "notes":  "## What\u0027s new\n- Onglet **Temp** : mini courbe d\u0027historique (sparkline) dans les cartes CPU/GPU\n- Menu → **Réduire dans les icônes cachées** (tray Windows)\n- Fermer avec l\u0027option active = cache dans le tray ; clic tray / Afficher restaure ; Quitter ferme vraiment\n\n## Test\n1. Installe 0.4.3\n2. Temp → laisse tourner → la courbe se remplit\n3. Menu → coche tray → ferme la fenêtre → icône dans les icônes cachées\n4. Clic tray → fenêtre revient",
+    "pub_date":  "2026-07-29T14:26:31Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpXK0srb0hPalQ0MlJSSFVvTVZ3bUdQOHFVY1gyeVBNeFJWQkgraGVCeUhPTG9mY3lSRTVOcU91V2VyN0NueFoyY0lOUlE5QktFdEJsM2hBNWVsREFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzMzMTIzCWZpbGU6Q1BVLVpFXzAuNC4yX3g2NC1zZXR1cC5leGUKV0xuZGsyRTF4VkFXTzRmOGdRbnhvM3hIejVsNlc3UWVJS0puZm9wQVloTjJSYVRHc053VzFBZTZGVDZBQllYRit2enVWSDlLZEZocFhiOGkxR1NpQkE9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.2/CPU-ZE_0.4.2_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVljc0hVZzFHY1paK2h6R0p1SVozdTVwN1Qwb3JPR0lkLytRZFJtb3paNFkzQk84SDBKeGlJKzVtRzZMcHlob0hLL2UyM1ZOSzdXQXFWeng2L0xBbFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzM1MTU3CWZpbGU6Q1BVLVpFXzAuNC4zX3g2NC1zZXR1cC5leGUKd295eVFmR0R4cmpSZkdJWEtVUXR6SlJyemE4V0tFTytOYXBHMDJuT0JLdWwrcVJ3cVRmdWMvYWtZK2lxY3ozK25yZTd5VzFiVlRhL1BiMDFCRG9hRFE9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.3/CPU-ZE_0.4.3_x64-setup.exe"
                                          }
                   }
 }
