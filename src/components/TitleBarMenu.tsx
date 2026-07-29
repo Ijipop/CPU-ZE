@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { disable as disablePluginAutostart } from "@tauri-apps/plugin-autostart";
 import { LanguageToggle } from "./LanguageToggle";
+import { useToast } from "./Toast";
 import { useLocale } from "../i18n/LocaleContext";
+import { localizeBackendError } from "../i18n";
 
 interface TitleBarMenuProps {
   onOpenHelp: () => void;
   onOpenAbout: () => void;
   minimizeToTray: boolean;
   onToggleMinimizeToTray: (next: boolean) => void;
+  startCompact: boolean;
+  onToggleStartCompact: (next: boolean) => void;
 }
 
 export function TitleBarMenu({
@@ -14,10 +20,24 @@ export function TitleBarMenu({
   onOpenAbout,
   minimizeToTray,
   onToggleMinimizeToTray,
+  startCompact,
+  onToggleStartCompact,
 }: TitleBarMenuProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const [autostart, setAutostart] = useState(false);
+  const [autostartBusy, setAutostartBusy] = useState(false);
+
+  useEffect(() => {
+    void invoke<boolean>("elevated_autostart_is_enabled")
+      .then(setAutostart)
+      .catch((e) => {
+        toast.push(localizeBackendError(locale, String(e)), "err");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per locale
+  }, [locale]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +56,35 @@ export function TitleBarMenu({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  const toggleAutostart = async () => {
+    if (autostartBusy) return;
+    setAutostartBusy(true);
+    try {
+      if (autostart) {
+        await invoke("elevated_autostart_disable");
+        setAutostart(false);
+      } else {
+        try {
+          await disablePluginAutostart();
+        } catch {
+          /* ignore if not registered */
+        }
+        await invoke("elevated_autostart_enable");
+        setAutostart(true);
+      }
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      toast.push(localizeBackendError(locale, raw), "err");
+      try {
+        setAutostart(await invoke<boolean>("elevated_autostart_is_enabled"));
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setAutostartBusy(false);
+    }
+  };
 
   return (
     <div className="tb-menu" ref={rootRef}>
@@ -57,7 +106,33 @@ export function TitleBarMenu({
             <span className="tb-menu-label">{t("lang.aria")}</span>
             <LanguageToggle />
           </div>
-          <label className="tb-menu-check" role="menuitemcheckbox">
+          <div className="tb-menu-sep" role="separator" />
+          <label
+            className={`tb-menu-check ${autostartBusy ? "is-busy" : ""}`}
+            role="menuitemcheckbox"
+            aria-checked={autostart}
+          >
+            <input
+              type="checkbox"
+              checked={autostart}
+              disabled={autostartBusy}
+              onChange={() => void toggleAutostart()}
+            />
+            <span>{t("footer.autostart")}</span>
+          </label>
+          <label className="tb-menu-check" role="menuitemcheckbox" aria-checked={startCompact}>
+            <input
+              type="checkbox"
+              checked={startCompact}
+              onChange={(e) => onToggleStartCompact(e.target.checked)}
+            />
+            <span>{t("footer.startMicro")}</span>
+          </label>
+          <label
+            className="tb-menu-check"
+            role="menuitemcheckbox"
+            aria-checked={minimizeToTray}
+          >
             <input
               type="checkbox"
               checked={minimizeToTray}
