@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.3",
-    "notes":  "## What\u0027s new\n- Onglet **Temp** : mini courbe d\u0027historique (sparkline) dans les cartes CPU/GPU\n- Menu → **Réduire dans les icônes cachées** (tray Windows)\n- Fermer avec l\u0027option active = cache dans le tray ; clic tray / Afficher restaure ; Quitter ferme vraiment\n\n## Test\n1. Installe 0.4.3\n2. Temp → laisse tourner → la courbe se remplit\n3. Menu → coche tray → ferme la fenêtre → icône dans les icônes cachées\n4. Clic tray → fenêtre revient",
-    "pub_date":  "2026-07-29T14:26:31Z",
+    "version":  "0.4.4",
+    "notes":  "## What\u0027s new\r\n- Tray **hors barre des tâches** (icônes cachées) : la fenêtre peut rester sur le bureau\r\n- Réduire / Fermer avec l’option active → tray ; clic tray / Afficher restaure ; Quitter ferme vraiment\r\n- **Terminer cpu-ze** depuis la liste ferme vraiment l’app (récupération si gel)\r\n- Anti-freeze : plus de OpenProcess sous mutex, cache mémoire, polls plus légers hors CPU/RAM / fenêtre cachée\r\n- Temp : sparklines cèdent avant min/moy/max sur fenêtres basses\r\n\r\n## Test\r\n1. Installe 0.4.4\r\n2. Menu → coche tray → plus dans la taskbar, icône dans les icônes cachées\r\n3. Onglet CPU sous charge → UI reste fluide\r\n4. Terminer cpu-ze depuis la liste → l’app quitte",
+    "pub_date":  "2026-07-29T15:06:32Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVljc0hVZzFHY1paK2h6R0p1SVozdTVwN1Qwb3JPR0lkLytRZFJtb3paNFkzQk84SDBKeGlJKzVtRzZMcHlob0hLL2UyM1ZOSzdXQXFWeng2L0xBbFE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzM1MTU3CWZpbGU6Q1BVLVpFXzAuNC4zX3g2NC1zZXR1cC5leGUKd295eVFmR0R4cmpSZkdJWEtVUXR6SlJyemE4V0tFTytOYXBHMDJuT0JLdWwrcVJ3cVRmdWMvYWtZK2lxY3ozK25yZTd5VzFiVlRhL1BiMDFCRG9hRFE9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.3/CPU-ZE_0.4.3_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVQvcXg1NGd3aUtvRStMQkxGbGJwZng1U2RlUTFoVzk2Mzc3UDFVaEhwRE1ra1JtRURQYkhISkFMdndLSlVaU1IveVY4aXVKZUVIVmE5WTVrWWFPUlF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzM3NTU4CWZpbGU6Q1BVLVpFXzAuNC40X3g2NC1zZXR1cC5leGUKc21lak9nSFMyQ3FjbVN5em9pamRtQmpuYi9nbGZWODVzNDBQWXBLdWxGbW1aTUVmVk5wTUtCdkd6b29UKzkzdmhrUGFxdmtkZlFEdGtjL0RnZU9uQmc9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.4/CPU-ZE_0.4.4_x64-setup.exe"
                                          }
                   }
 }
