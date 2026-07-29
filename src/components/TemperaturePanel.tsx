@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { SensorReading } from "../types";
+import type { TempExtremes } from "../hooks/useTempExtremes";
 import { useToast } from "./Toast";
 import { useLocale } from "../i18n/LocaleContext";
 import { localizeBackendError } from "../i18n";
@@ -11,17 +12,10 @@ type PawnIoStatus =
   | "needsElevation"
   | "driverPresentButLoadFailed";
 
-interface Extremes {
-  min: number | null;
-  max: number | null;
-  sum: number;
-  count: number;
-}
-
 interface SensorCardProps {
   title: string;
   reading: SensorReading | null;
-  extremes: Extremes;
+  extremes: TempExtremes;
   history: number[];
   unavailableHint: ReactNode;
   accent: "cpu" | "gpu";
@@ -33,14 +27,13 @@ interface SensorCardProps {
 }
 
 const TEMP_ONBOARD_KEY = "cpuze.tempOnboarded";
-const HISTORY_MAX = 60;
 
 function formatTemp(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value.toFixed(1)}°C`;
 }
 
-function averageOf(extremes: Extremes): number | null {
+function averageOf(extremes: TempExtremes): number | null {
   if (extremes.count <= 0) return null;
   return extremes.sum / extremes.count;
 }
@@ -53,13 +46,6 @@ function heatClass(celsius: number): string {
   if (celsius >= 85) return "heat-hot";
   if (celsius >= 70) return "heat-warm";
   return "heat-cool";
-}
-
-function pushHistory(prev: number[], celsius: number | null): number[] {
-  if (celsius === null || Number.isNaN(celsius)) return prev;
-  const next = prev.length >= HISTORY_MAX ? prev.slice(1) : prev.slice();
-  next.push(celsius);
-  return next;
 }
 
 function TempSparkline({
@@ -188,25 +174,11 @@ interface TemperaturePanelProps {
   gpuUtil: number | null;
   error: string | null;
   loading: boolean;
-}
-
-function emptyExtremes(): Extremes {
-  return { min: null, max: null, sum: 0, count: 0 };
-}
-
-function fromSample(celsius: number | null): Extremes {
-  if (celsius === null || Number.isNaN(celsius)) return emptyExtremes();
-  return { min: celsius, max: celsius, sum: celsius, count: 1 };
-}
-
-function updateExtremes(prev: Extremes, celsius: number | null): Extremes {
-  if (celsius === null || Number.isNaN(celsius)) return prev;
-  return {
-    min: prev.min === null ? celsius : Math.min(prev.min, celsius),
-    max: prev.max === null ? celsius : Math.max(prev.max, celsius),
-    sum: prev.sum + celsius,
-    count: prev.count + 1,
-  };
+  cpuExtremes: TempExtremes;
+  gpuExtremes: TempExtremes;
+  cpuHistory: number[];
+  gpuHistory: number[];
+  onResetExtremes: () => void;
 }
 
 export function TemperaturePanel({
@@ -215,13 +187,14 @@ export function TemperaturePanel({
   gpuUtil,
   error,
   loading,
+  cpuExtremes,
+  gpuExtremes,
+  cpuHistory,
+  gpuHistory,
+  onResetExtremes,
 }: TemperaturePanelProps) {
   const toast = useToast();
   const { locale, t } = useLocale();
-  const [cpuExtremes, setCpuExtremes] = useState<Extremes>(emptyExtremes);
-  const [gpuExtremes, setGpuExtremes] = useState<Extremes>(emptyExtremes);
-  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
-  const [gpuHistory, setGpuHistory] = useState<number[]>([]);
   const [pawnio, setPawnio] = useState<PawnIoStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installMsg, setInstallMsg] = useState<string | null>(null);
@@ -233,16 +206,6 @@ export function TemperaturePanel({
       return true;
     }
   });
-
-  useEffect(() => {
-    setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
-    setCpuHistory((prev) => pushHistory(prev, cpu?.celsius ?? null));
-  }, [cpu]);
-
-  useEffect(() => {
-    setGpuExtremes((prev) => updateExtremes(prev, gpu?.celsius ?? null));
-    setGpuHistory((prev) => pushHistory(prev, gpu?.celsius ?? null));
-  }, [gpu]);
 
   useEffect(() => {
     let alive = true;
@@ -299,10 +262,7 @@ export function TemperaturePanel({
   };
 
   const reset = () => {
-    setCpuExtremes(fromSample(cpu?.celsius ?? null));
-    setGpuExtremes(fromSample(gpu?.celsius ?? null));
-    setCpuHistory(cpu?.celsius != null ? [cpu.celsius] : []);
-    setGpuHistory(gpu?.celsius != null ? [gpu.celsius] : []);
+    onResetExtremes();
     toast.push(t("temp.resetToast"), "info");
   };
 
