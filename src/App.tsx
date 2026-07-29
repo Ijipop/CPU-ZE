@@ -39,8 +39,8 @@ import { useLocale } from "./i18n/LocaleContext";
 import "./styles.css";
 
 const NORMAL_MIN = { width: 420, height: 320 };
-const COMPACT_MIN = { width: 280, height: 100 };
-const COMPACT_SIZE = { width: 320, height: 124 };
+const COMPACT_MIN = { width: 280, height: 84 };
+const COMPACT_SIZE = { width: 320, height: 90 };
 /** Outer window morph — content is veiled, so a soft desktop resize is fine. */
 const MORPH_RESIZE_MS = 200;
 
@@ -478,7 +478,6 @@ function AppInner() {
             cpuTemp={temps.cpu}
             gpuTemp={temps.gpu}
             gpuUtil={temps.gpuUtil}
-            onExpand={() => void exitCompact()}
           />
         ) : (
           <>
