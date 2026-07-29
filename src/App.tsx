@@ -12,7 +12,7 @@ import { HeaderStats } from "./components/HeaderStats";
 import { ProcessTabs } from "./components/ProcessTabs";
 import { ProcessTable } from "./components/ProcessTable";
 import { TemperaturePanel } from "./components/TemperaturePanel";
-import { AutostartToggle } from "./components/AutostartToggle";
+import { AppFooter } from "./components/AppFooter";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { TitleBar, loadAppVersion } from "./components/TitleBar";
@@ -488,6 +488,8 @@ function AppInner() {
         onOpenAbout={() => setShowAbout(true)}
         minimizeToTray={minimizeToTray}
         onToggleMinimizeToTray={onToggleMinimizeToTray}
+        startCompact={startCompact}
+        onToggleStartCompact={onToggleStartCompact}
       />
 
       <div className="app-body">
@@ -558,12 +560,10 @@ function AppInner() {
               </>
             )}
 
-            <AutostartToggle
+            <AppFooter
               updateStatus={updater.status}
               updateMessage={updater.message}
               onCheckUpdate={() => void updater.checkNow()}
-              startCompact={startCompact}
-              onToggleStartCompact={onToggleStartCompact}
             />
           </>
         )}
