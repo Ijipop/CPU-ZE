@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.0",
-    "notes":  "## What\u0027s new\n- Bouton **Menu** dans la titlebar (avec marge, ne colle plus aux bords)\n- FR/EN, raccourcis (?) et À propos (i) regroupés dans le menu\n- Toujours masqué en mode micro\n\n## Test\n1. Installe 0.4.0\n2. Ouvre Menu → FR/EN, ?, i fonctionnent\n3. Mode micro → pas de Menu",
-    "pub_date":  "2026-07-29T13:09:04Z",
+    "version":  "0.4.1",
+    "notes":  "## What\u0027s new\n- Mode **micro** ~90 px de haut (même largeur)\n- Plus de bouton Agrandir dans le HUD (titlebar / Alt+Entrée restent)\n- Temps séparés : CPU – xx° | GPU – xx° · yy%\n\n## Test\n1. Installe 0.4.1\n2. Passe en micro → hauteur ~90 px, pas d’Agrandir\n3. Vérifie CPU / GPU bien séparés",
+    "pub_date":  "2026-07-29T13:32:46Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVVEU1Z4clJnSlRGWWIvVlFnTDQyS2FRTWZkWlFSVmZHQTBOYlhiNExoMGkwR2xBcjhxOS9OT1ltMWJQZUhST0J6NmtxS0YzNVJ2UHh6QXR2Qkt0RVE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzMwNTAxCWZpbGU6Q1BVLVpFXzAuNC4wX3g2NC1zZXR1cC5leGUKQXhlYlVNQjR2S2tRQ3Q5RWRFaGlGdnFyWXUvWWZMTStVTmRFTFVHSTFtbWxLWTR2L3pDeTFwUEhXZTBtczJMWWZ6ZXNxZm4vczl5Y3B4V2dmc2J6QXc9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.0/CPU-ZE_0.4.0_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVkzR3d3eFY0emVyWnRrOGZUSXlZbXNGYlhCM09jSVpLdFJFcjVQQ0NOQUFXZjZ6akVPN2J4UjQvdlRjYzJXRGl0UkNWc2Z5U1I2VGUxTXlFN2xrNXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzMxOTIzCWZpbGU6Q1BVLVpFXzAuNC4xX3g2NC1zZXR1cC5leGUKN3dPMWNxWkhtV0hVUkNnWTZIRCs2ck82UytVemJzOGFyV2VVQlg4OHJUMjNoMldWQTFxOEo1NDJ2elp1ZjFHMFQvZVloMDhXUURhZzF0cjc4N1hkQ1E9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.1/CPU-ZE_0.4.1_x64-setup.exe"
                                          }
                   }
 }
