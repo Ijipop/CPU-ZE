@@ -1,11 +1,11 @@
 {
-    "version":  "0.3.12",
-    "notes":  "## What\u0027s new\n- Onglet **Temp** : plus de chevauchement entre les labels CPU/GPU et le °C quand la fenêtre est très réduite\n- Typo et chrome secondaires qui se compressent avec la hauteur des cartes\n\n## Test\n1. Installe 0.3.12\n2. Onglet Temp → réduis beaucoup la fenêtre → CPU/GPU restent lisibles, sans overlap sur le °C",
-    "pub_date":  "2026-07-28T22:28:26Z",
+    "version":  "0.3.13",
+    "notes":  "## What\u0027s new\n- **FR / EN** : bouton de langue dans la titlebar (masqué en mode micro)\n- Mode **micro** plus compact (~26 px plus bas), mêmes infos\n- UI entièrement traduite + unités Go/GB · Mo/MB\n\n## Test\n1. Installe 0.3.13\n2. Bascule FR ↔ EN en fenêtre normale\n3. Mode micro → pas de bouton langue, HUD lisible",
+    "pub_date":  "2026-07-29T12:50:45Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWY5dzhUVU5EZGU0SVVkZnhBdGNkc3dvQkpNa3RpWGtheFp5dGJsWDlBYzlCa0tJMTZrNXV6c3U3SzBycG1NTGM0amxCTGNqUUd5eU5SSzR0WlVmaXdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1Mjc3NjU4CWZpbGU6Q1BVLVpFXzAuMy4xMl94NjQtc2V0dXAuZXhlCjFseWRrR1haZm1HLzNaRW5waWtNN3J5NXh1Yk4wczN4bHpKYzIrWnVSRXFHTVRRRk5hK0d5cURubThySnNJYWxpN0EzSHF6RVp0b2N2VUMrZEIyTENnPT0K",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.12/CPU-ZE_0.3.12_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpjcHdnT1VFRTRWMUNWSkVTb1hRblBsOEhiWXJrb24rdFVjNXNaZDQ5cHBvTnBtSFczRUJQT3kyamRPbWFMMll4dlhRejJrRmUxS1d5MUM2WERrZUFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzI5MzY1CWZpbGU6Q1BVLVpFXzAuMy4xM194NjQtc2V0dXAuZXhlCnZWOVJ4cFA5UXhHekZaa2JwZXR4Y0tyQW9DV1ZKbU5Id1g1S1NQZzhvOER6bTk2YnZhdVNkUFVuaGtnOVJKKzZ4Q2R5TEFvRmhBblp2amttUUwzN0NnPT0K",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.3.13/CPU-ZE_0.3.13_x64-setup.exe"
                                          }
                   }
 }
