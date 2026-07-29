@@ -5,9 +5,16 @@ import { useLocale } from "../i18n/LocaleContext";
 interface TitleBarMenuProps {
   onOpenHelp: () => void;
   onOpenAbout: () => void;
+  minimizeToTray: boolean;
+  onToggleMinimizeToTray: (next: boolean) => void;
 }
 
-export function TitleBarMenu({ onOpenHelp, onOpenAbout }: TitleBarMenuProps) {
+export function TitleBarMenu({
+  onOpenHelp,
+  onOpenAbout,
+  minimizeToTray,
+  onToggleMinimizeToTray,
+}: TitleBarMenuProps) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -50,6 +57,14 @@ export function TitleBarMenu({ onOpenHelp, onOpenAbout }: TitleBarMenuProps) {
             <span className="tb-menu-label">{t("lang.aria")}</span>
             <LanguageToggle />
           </div>
+          <label className="tb-menu-check" role="menuitemcheckbox">
+            <input
+              type="checkbox"
+              checked={minimizeToTray}
+              onChange={(e) => onToggleMinimizeToTray(e.target.checked)}
+            />
+            <span>{t("tray.minimizeToTray")}</span>
+          </label>
           <div className="tb-menu-sep" role="separator" />
           <button
             type="button"

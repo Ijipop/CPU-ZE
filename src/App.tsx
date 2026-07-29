@@ -28,14 +28,17 @@ import {
   loadCompactPos,
   loadNormalGeom,
   loadStartCompact,
+  loadMinimizeToTray,
   saveCompactPos,
   saveNormalGeom,
   saveStartCompact,
+  saveMinimizeToTray,
   type PhysicalGeom,
   type PhysicalPos,
 } from "./prefs";
 import type { ProcessTabId, TabId } from "./types";
 import { useLocale } from "./i18n/LocaleContext";
+import { useMinimizeToTray } from "./hooks/useMinimizeToTray";
 import "./styles.css";
 
 const NORMAL_MIN = { width: 420, height: 320 };
@@ -186,6 +189,7 @@ function AppInner() {
   const [tab, setTab] = useState<TabId>("cpu");
   const [compact, setCompact] = useState(false);
   const [startCompact, setStartCompact] = useState(loadStartCompact);
+  const [minimizeToTray, setMinimizeToTray] = useState(loadMinimizeToTray);
   const [processFilter, setProcessFilter] = useState("");
   const [version, setVersion] = useState("");
   const [showAbout, setShowAbout] = useState(false);
@@ -207,6 +211,7 @@ function AppInner() {
     loading: tempLoading,
   } = useTemperatures(tempsInterval, tempsEnabled);
   const updater = useUpdater(true);
+  useMinimizeToTray({ enabled: minimizeToTray });
 
   useEffect(() => {
     compactRef.current = compact;
@@ -451,6 +456,11 @@ function AppInner() {
     saveStartCompact(next);
   };
 
+  const onToggleMinimizeToTray = (next: boolean) => {
+    setMinimizeToTray(next);
+    saveMinimizeToTray(next);
+  };
+
   const processTab: ProcessTabId = tab === "ram" ? "ram" : "cpu";
 
   return (
@@ -467,6 +477,8 @@ function AppInner() {
         onToggleCompact={toggleCompact}
         onOpenHelp={() => setShowHelp(true)}
         onOpenAbout={() => setShowAbout(true)}
+        minimizeToTray={minimizeToTray}
+        onToggleMinimizeToTray={onToggleMinimizeToTray}
       />
 
       <div className="app-body">
