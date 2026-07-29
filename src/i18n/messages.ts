@@ -16,6 +16,10 @@ export const fr = {
   "title.close": "Fermer",
   "title.menu": "Menu",
 
+  "tray.minimizeToTray": "Réduire dans les icônes cachées",
+  "tray.show": "Afficher CPU-ZE",
+  "tray.quit": "Quitter",
+
   "lang.fr": "FR",
   "lang.en": "EN",
   "lang.aria": "Changer la langue",
@@ -185,6 +189,10 @@ export const en: Record<MessageKey, string> = {
   "title.maximize": "Maximize",
   "title.close": "Close",
   "title.menu": "Menu",
+
+  "tray.minimizeToTray": "Minimize to hidden icons",
+  "tray.show": "Show CPU-ZE",
+  "tray.quit": "Quit",
 
   "lang.fr": "FR",
   "lang.en": "EN",

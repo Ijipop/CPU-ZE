@@ -748,6 +748,34 @@ body {
   background: rgba(120, 160, 180, 0.16);
 }
 
+.tb-menu-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tb-menu-check:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.tb-menu-check input {
+  margin-top: 2px;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 .tb-menu-item {
   appearance: none;
   border: 0;
@@ -1171,8 +1199,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   min-height: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .temp-current {
@@ -1222,6 +1249,61 @@ body {
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.temp-spark-wrap {
+  flex: 1 1 auto;
+  min-height: clamp(48px, 12vh, 120px);
+  display: flex;
+  align-items: stretch;
+  margin: 2px 0 4px;
+}
+
+.temp-spark {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.temp-spark.is-empty {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.04)
+  );
+  border-radius: 8px;
+  border: 1px dashed rgba(120, 160, 180, 0.14);
+}
+
+.temp-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.temp-spark-fill {
+  stroke: none;
+  opacity: 0.18;
+}
+
+.temp-spark-cpu {
+  color: var(--cpu);
+}
+
+.temp-spark-cpu .temp-spark-fill {
+  fill: var(--cpu);
+}
+
+.temp-spark-gpu {
+  color: var(--accent-2);
+}
+
+.temp-spark-gpu .temp-spark-fill {
+  fill: var(--accent-2);
 }
 
 .temp-meter-fill {
@@ -1330,6 +1412,10 @@ body {
 }
 
 @container temp-card (max-height: 180px) {
+  .temp-spark-wrap {
+    min-height: 28px;
+  }
+
   .temp-extremes {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
@@ -1357,6 +1443,10 @@ body {
 }
 
 @container temp-card (max-height: 140px) {
+  .temp-spark-wrap {
+    display: none;
+  }
+
   .temp-extremes {
     display: none;
   }

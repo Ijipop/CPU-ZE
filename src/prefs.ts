@@ -1,8 +1,7 @@
-/** Persisted UI preferences (localStorage). */
-
 const START_COMPACT_KEY = "cpuze.startCompact";
 const GEOM_NORMAL_KEY = "cpuze.geom.normal";
 const GEOM_COMPACT_KEY = "cpuze.geom.compact";
+const MINIMIZE_TO_TRAY_KEY = "cpuze.minimizeToTray";
 
 export interface PhysicalGeom {
   x: number;
@@ -45,6 +44,22 @@ export function loadStartCompact(): boolean {
 export function saveStartCompact(value: boolean) {
   try {
     localStorage.setItem(START_COMPACT_KEY, value ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadMinimizeToTray(): boolean {
+  try {
+    return localStorage.getItem(MINIMIZE_TO_TRAY_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveMinimizeToTray(value: boolean) {
+  try {
+    localStorage.setItem(MINIMIZE_TO_TRAY_KEY, value ? "1" : "0");
   } catch {
     /* ignore */
   }

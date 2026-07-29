@@ -10,6 +10,8 @@ interface TitleBarProps {
   onToggleCompact: () => void;
   onOpenHelp: () => void;
   onOpenAbout: () => void;
+  minimizeToTray: boolean;
+  onToggleMinimizeToTray: (next: boolean) => void;
 }
 
 export function TitleBar({
@@ -18,6 +20,8 @@ export function TitleBar({
   onToggleCompact,
   onOpenHelp,
   onOpenAbout,
+  minimizeToTray,
+  onToggleMinimizeToTray,
 }: TitleBarProps) {
   const win = getCurrentWindow();
   const { t } = useLocale();
@@ -56,7 +60,12 @@ export function TitleBar({
 
       <div className="titlebar-controls">
         {!compact && (
-          <TitleBarMenu onOpenHelp={onOpenHelp} onOpenAbout={onOpenAbout} />
+          <TitleBarMenu
+            onOpenHelp={onOpenHelp}
+            onOpenAbout={onOpenAbout}
+            minimizeToTray={minimizeToTray}
+            onToggleMinimizeToTray={onToggleMinimizeToTray}
+          />
         )}
 
         <button

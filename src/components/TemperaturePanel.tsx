@@ -22,6 +22,7 @@ interface SensorCardProps {
   title: string;
   reading: SensorReading | null;
   extremes: Extremes;
+  history: number[];
   unavailableHint: ReactNode;
   accent: "cpu" | "gpu";
   extra?: ReactNode;
@@ -32,6 +33,7 @@ interface SensorCardProps {
 }
 
 const TEMP_ONBOARD_KEY = "cpuze.tempOnboarded";
+const HISTORY_MAX = 60;
 
 function formatTemp(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
@@ -53,10 +55,62 @@ function heatClass(celsius: number): string {
   return "heat-cool";
 }
 
+function pushHistory(prev: number[], celsius: number | null): number[] {
+  if (celsius === null || Number.isNaN(celsius)) return prev;
+  const next = prev.length >= HISTORY_MAX ? prev.slice(1) : prev.slice();
+  next.push(celsius);
+  return next;
+}
+
+function TempSparkline({
+  points,
+  accent,
+}: {
+  points: number[];
+  accent: "cpu" | "gpu";
+}) {
+  if (points.length < 2) {
+    return <div className={`temp-spark temp-spark-${accent} is-empty`} aria-hidden />;
+  }
+
+  const w = 120;
+  const h = 48;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const pad = Math.max((max - min) * 0.12, 0.8);
+  const lo = min - pad;
+  const hi = max + pad;
+  const range = Math.max(hi - lo, 1);
+
+  const coords = points.map((p, i) => {
+    const x = (i / (points.length - 1)) * w;
+    const y = h - ((p - lo) / range) * h;
+    return [x, y] as const;
+  });
+
+  const line = coords
+    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`)
+    .join(" ");
+  const area = `${line} L${w.toFixed(2)} ${h} L0 ${h} Z`;
+
+  return (
+    <svg
+      className={`temp-spark temp-spark-${accent}`}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path className="temp-spark-fill" d={area} />
+      <path className="temp-spark-line" d={line} />
+    </svg>
+  );
+}
+
 function SensorCard({
   title,
   reading,
   extremes,
+  history,
   unavailableHint,
   accent,
   extra,
@@ -89,6 +143,10 @@ function SensorCard({
               <span className="temp-current-caption">{currentLabel}</span>
             </div>
             <div className="temp-util-slot">{extra ?? null}</div>
+          </div>
+
+          <div className="temp-spark-wrap">
+            <TempSparkline points={history} accent={accent} />
           </div>
 
           <div className="temp-meter" aria-hidden>
@@ -162,6 +220,8 @@ export function TemperaturePanel({
   const { locale, t } = useLocale();
   const [cpuExtremes, setCpuExtremes] = useState<Extremes>(emptyExtremes);
   const [gpuExtremes, setGpuExtremes] = useState<Extremes>(emptyExtremes);
+  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
+  const [gpuHistory, setGpuHistory] = useState<number[]>([]);
   const [pawnio, setPawnio] = useState<PawnIoStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installMsg, setInstallMsg] = useState<string | null>(null);
@@ -176,10 +236,12 @@ export function TemperaturePanel({
 
   useEffect(() => {
     setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
+    setCpuHistory((prev) => pushHistory(prev, cpu?.celsius ?? null));
   }, [cpu]);
 
   useEffect(() => {
     setGpuExtremes((prev) => updateExtremes(prev, gpu?.celsius ?? null));
+    setGpuHistory((prev) => pushHistory(prev, gpu?.celsius ?? null));
   }, [gpu]);
 
   useEffect(() => {
@@ -238,6 +300,8 @@ export function TemperaturePanel({
   const reset = () => {
     setCpuExtremes(fromSample(cpu?.celsius ?? null));
     setGpuExtremes(fromSample(gpu?.celsius ?? null));
+    setCpuHistory(cpu?.celsius != null ? [cpu.celsius] : []);
+    setGpuHistory(gpu?.celsius != null ? [gpu.celsius] : []);
     toast.push(t("temp.resetToast"), "info");
   };
 
@@ -370,6 +434,7 @@ export function TemperaturePanel({
               title="CPU"
               reading={cpu}
               extremes={cpuExtremes}
+              history={cpuHistory}
               unavailableHint={cpuHint}
               accent="cpu"
               currentLabel={t("temp.current")}
@@ -381,6 +446,7 @@ export function TemperaturePanel({
               title="GPU"
               reading={gpu}
               extremes={gpuExtremes}
+              history={gpuHistory}
               unavailableHint={<p>{t("temp.gpuMissing")}</p>}
               accent="gpu"
               currentLabel={t("temp.current")}
