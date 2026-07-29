@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.4",
-    "notes":  "## What\u0027s new\n- Tray **hors barre des tâches** (icônes cachées) : la fenêtre peut rester sur le bureau\n- Réduire / Fermer avec l\u0027option active → tray ; clic tray / Afficher restaure ; Quitter ferme vraiment\n- **Terminer cpu-ze** depuis la liste ferme vraiment l\u0027app (récupération si gel)\n- Anti-freeze : plus de OpenProcess sous mutex, cache mémoire, polls plus légers hors CPU/RAM / fenêtre cachée\n- Temp : sparklines cèdent avant min/moy/max sur fenêtres basses\n\n## Test\n1. Installe 0.4.4\n2. Menu → coche tray → plus dans la taskbar, icône dans les icônes cachées\n3. Onglet CPU sous charge → UI reste fluide\n4. Terminer cpu-ze depuis la liste → l\u0027app quitte",
-    "pub_date":  "2026-07-29T15:07:18Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVQvcXg1NGd3aUtvRStMQkxGbGJwZng1U2RlUTFoVzk2Mzc3UDFVaEhwRE1ra1JtRURQYkhISkFMdndLSlVaU1IveVY4aXVKZUVIVmE5WTVrWWFPUlF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzM3NTU4CWZpbGU6Q1BVLVpFXzAuNC40X3g2NC1zZXR1cC5leGUKc21lak9nSFMyQ3FjbVN5em9pamRtQmpuYi9nbGZWODVzNDBQWXBLdWxGbW1aTUVmVk5wTUtCdkd6b29UKzkzdmhrUGFxdmtkZlFEdGtjL0RnZU9uQmc9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.4/CPU-ZE_0.4.4_x64-setup.exe"
-                                         }
-                  }
+    "version": "0.4.5",
+    "notes": "## What's new\n- Min / moy / max Temp continuent de s'accumuler en mode micro (et hors onglet Temp)\n- Morph micro ↔ normal plus rapide (~110 ms)\n\n## Test\n1. Installe 0.4.5\n2. Onglet Temp → noter min/max → micro quelques minutes → démicro → valeurs mises à jour\n3. Alt+Entrée micro/démicro plus snappy",
+    "pub_date": "2026-07-29T16:59:20Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVh4WWp0Z0N3b2hqQmlRWmt6blVxV1VCRjVlY05qQTg5WWFUTjVRaFArS1g2ZFo1a3pzTmNNTjNwWDQ4cEVscmlmU2tRNERycEorNG00UWx2cFhWaVF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzQ0MzEwCWZpbGU6Q1BVLVpFXzAuNC41X3g2NC1zZXR1cC5leGUKdENQRGtBV1lJQTE3bDlZWDJyTjlqZ2xsNHRzZ012K3pHOTZVUGJ4SXprYVZOd09KaHUwalVzK2pReHVWNXNRQlBFSFRQcWhPdWxRM0I2SGZJS0FkQnc9PQo=",
+            "url": "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.5/CPU-ZE_0.4.5_x64-setup.exe"
+        }
+    }
 }
