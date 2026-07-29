@@ -39,13 +39,14 @@ import {
 import type { ProcessTabId, TabId } from "./types";
 import { useLocale } from "./i18n/LocaleContext";
 import { useMinimizeToTray } from "./hooks/useMinimizeToTray";
+import { useTempExtremes } from "./hooks/useTempExtremes";
 import "./styles.css";
 
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 84 };
 const COMPACT_SIZE = { width: 320, height: 90 };
 /** Outer window morph — content is veiled, so a soft desktop resize is fine. */
-const MORPH_RESIZE_MS = 200;
+const MORPH_RESIZE_MS = 110;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -53,11 +54,6 @@ function prefersReducedMotion(): boolean {
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-function waitMs(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function nextPaint(): Promise<void> {
@@ -209,13 +205,14 @@ function AppInner() {
     frozen && !compact,
     { detail: processDetail, pauseWhenHidden: true },
   );
-  const tempsEnabled = compact || tab === "temp";
+  const tempsEnabled = true;
   const tempsInterval = tab === "temp" && !compact ? 1500 : 2500;
   const {
     snapshot: temps,
     error: tempError,
     loading: tempLoading,
   } = useTemperatures(tempsInterval, tempsEnabled);
+  const tempStats = useTempExtremes(temps.cpu, temps.gpu);
   const updater = useUpdater(true);
   useMinimizeToTray({ enabled: minimizeToTray });
 
@@ -336,6 +333,10 @@ function AppInner() {
       skipPersist.current = true;
       await nextPaint();
 
+      // Swap UI under the veil while the window resizes.
+      compactRef.current = true;
+      setCompact(true);
+
       const size = await win.outerSize();
       const pos = await win.outerPosition();
       const g = { x: pos.x, y: pos.y, width: size.width, height: size.height };
@@ -350,16 +351,15 @@ function AppInner() {
       const from = g;
       const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
 
-      await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-      await win.setAlwaysOnTop(true);
+      await Promise.all([
+        win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
+        win.setAlwaysOnTop(true),
+      ]);
       await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
 
       compactPos.current = { x: to.x, y: to.y };
       saveCompactPos(compactPos.current);
-      compactRef.current = true;
-      setCompact(true);
       await nextPaint();
-      await waitMs(reduced ? 0 : 40);
     } catch (e) {
       console.error(e);
     } finally {
@@ -379,6 +379,10 @@ function AppInner() {
       skipPersist.current = true;
       await nextPaint();
 
+      // Swap UI under the veil while the window resizes.
+      compactRef.current = false;
+      setCompact(false);
+
       const size = await win.outerSize();
       const pos = await win.outerPosition();
       compactPos.current = { x: pos.x, y: pos.y };
@@ -397,17 +401,16 @@ function AppInner() {
       const to = { x: stay.x, y: stay.y, width, height };
 
       // Never raise NORMAL_MIN before grow — that snaps and ghosts the micro frame.
-      await win.setAlwaysOnTop(false);
-      await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
+      await Promise.all([
+        win.setAlwaysOnTop(false),
+        win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
+      ]);
       await animateWindowBounds(win, from, to, reduced ? 0 : MORPH_RESIZE_MS);
 
       await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
-      compactRef.current = false;
-      setCompact(false);
       normalGeom.current = to;
       saveNormalGeom(to);
       await nextPaint();
-      await waitMs(reduced ? 0 : 40);
     } catch (e) {
       console.error(e);
       compactRef.current = false;
@@ -525,6 +528,11 @@ function AppInner() {
                 gpuUtil={temps.gpuUtil}
                 error={tempError}
                 loading={tempLoading}
+                cpuExtremes={tempStats.cpuExtremes}
+                gpuExtremes={tempStats.gpuExtremes}
+                cpuHistory={tempStats.cpuHistory}
+                gpuHistory={tempStats.gpuHistory}
+                onResetExtremes={tempStats.reset}
               />
             ) : (
               <>
