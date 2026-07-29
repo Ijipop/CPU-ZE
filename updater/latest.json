@@ -1,11 +1,11 @@
 {
-    "version":  "0.4.1",
-    "notes":  "## What\u0027s new\n- Mode **micro** ~90 px de haut (même largeur)\n- Plus de bouton Agrandir dans le HUD (titlebar / Alt+Entrée restent)\n- Temps séparés : CPU – xx° | GPU – xx° · yy%\n\n## Test\n1. Installe 0.4.1\n2. Passe en micro → hauteur ~90 px, pas d’Agrandir\n3. Vérifie CPU / GPU bien séparés",
-    "pub_date":  "2026-07-29T13:32:46Z",
+    "version":  "0.4.2",
+    "notes":  "## What\u0027s new\n- Mode **micro** : °C colorés selon la chaleur (vert \u003c70, jaune ≥70, rouge ≥85)\n- Seuls les chiffres de température sont teintés (pas les labels / %)\n- Temps toujours collés en bas du HUD\n\n## Test\n1. Installe 0.4.2\n2. Mode micro → vérifie la couleur des °C\n3. Temps bien séparés en bas, pas collés aux barres",
+    "pub_date":  "2026-07-29T13:52:48Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVkzR3d3eFY0emVyWnRrOGZUSXlZbXNGYlhCM09jSVpLdFJFcjVQQ0NOQUFXZjZ6akVPN2J4UjQvdlRjYzJXRGl0UkNWc2Z5U1I2VGUxTXlFN2xrNXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzMxOTIzCWZpbGU6Q1BVLVpFXzAuNC4xX3g2NC1zZXR1cC5leGUKN3dPMWNxWkhtV0hVUkNnWTZIRCs2ck82UytVemJzOGFyV2VVQlg4OHJUMjNoMldWQTFxOEo1NDJ2elp1ZjFHMFQvZVloMDhXUURhZzF0cjc4N1hkQ1E9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.1/CPU-ZE_0.4.1_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpXK0srb0hPalQ0MlJSSFVvTVZ3bUdQOHFVY1gyeVBNeFJWQkgraGVCeUhPTG9mY3lSRTVOcU91V2VyN0NueFoyY0lOUlE5QktFdEJsM2hBNWVsREFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzMzMTIzCWZpbGU6Q1BVLVpFXzAuNC4yX3g2NC1zZXR1cC5leGUKV0xuZGsyRTF4VkFXTzRmOGdRbnhvM3hIejVsNlc3UWVJS0puZm9wQVloTjJSYVRHc053VzFBZTZGVDZBQllYRit2enVWSDlLZEZocFhiOGkxR1NpQkE9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.2/CPU-ZE_0.4.2_x64-setup.exe"
                                          }
                   }
 }
