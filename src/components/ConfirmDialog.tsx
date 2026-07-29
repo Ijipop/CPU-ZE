@@ -1,3 +1,5 @@
+import { useLocale } from "../i18n/LocaleContext";
+
 interface ConfirmDialogProps {
   title: string;
   message: string;
@@ -10,11 +12,13 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Confirmer",
+  confirmLabel,
   danger = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useLocale();
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onCancel}>
       <div
@@ -30,7 +34,7 @@ export function ConfirmDialog({
         <p className="modal-body">{message}</p>
         <div className="modal-actions">
           <button type="button" className="modal-btn-ghost" onClick={onCancel}>
-            Annuler
+            {t("confirm.cancel")}
           </button>
           <button
             type="button"
@@ -38,7 +42,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             autoFocus
           >
-            {confirmLabel}
+            {confirmLabel ?? t("confirm.ok")}
           </button>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { useLocale } from "../i18n/LocaleContext";
+import { translate, type Locale } from "../i18n";
 
 export type UpdateStatus =
   | "idle"
@@ -13,10 +15,14 @@ export type UpdateStatus =
 
 const DISMISS_KEY = "cpuze.update.dismissed";
 
-function formatUpdaterError(e: unknown): string {
+function formatUpdaterError(locale: Locale, e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
-  if (/valid release json|404|401|403|failed to fetch|error sending request/i.test(raw)) {
-    return "Mise à jour inaccessible — vérifie ta connexion ou réessaie plus tard.";
+  if (
+    /valid release json|404|401|403|failed to fetch|error sending request/i.test(
+      raw,
+    )
+  ) {
+    return translate(locale, "update.unreachable");
   }
   return raw;
 }
@@ -38,6 +44,7 @@ function rememberDismissed(version: string) {
 }
 
 export function useUpdater(checkOnMount = true) {
+  const { locale, t } = useLocale();
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [update, setUpdate] = useState<Update | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -55,12 +62,12 @@ export function useUpdater(checkOnMount = true) {
       if (next) {
         setUpdate(next);
         setStatus("available");
-        setMessage(`v${next.version} disponible`);
+        setMessage(t("update.versionAvailable", { version: next.version }));
         setPromptOpen(true);
       } else {
         setUpdate(null);
         setStatus("uptodate");
-        setMessage("Déjà à jour");
+        setMessage(t("update.uptodate"));
         setPromptOpen(false);
         window.setTimeout(() => {
           setStatus((s) => (s === "uptodate" ? "idle" : s));
@@ -69,18 +76,18 @@ export function useUpdater(checkOnMount = true) {
       }
     } catch (e) {
       setStatus("error");
-      setError(formatUpdaterError(e));
-      setMessage("Échec de la vérif");
+      setError(formatUpdaterError(locale, e));
+      setMessage(t("update.checkFailed"));
       setPromptOpen(false);
     }
-  }, []);
+  }, [locale, t]);
 
   const install = useCallback(async () => {
     if (!update) return;
     setError(null);
     setStatus("downloading");
     setProgress(0);
-    setMessage("Téléchargement…");
+    setMessage(t("update.downloading"));
     setPromptOpen(true);
 
     try {
@@ -101,7 +108,7 @@ export function useUpdater(checkOnMount = true) {
           case "Finished":
             setProgress(100);
             setStatus("installing");
-            setMessage("Installation…");
+            setMessage(t("update.installing"));
             break;
         }
       });
@@ -109,11 +116,11 @@ export function useUpdater(checkOnMount = true) {
       await relaunch();
     } catch (e) {
       setStatus("error");
-      setError(formatUpdaterError(e));
-      setMessage("Échec de la mise à jour");
+      setError(formatUpdaterError(locale, e));
+      setMessage(t("update.installFailed"));
       setPromptOpen(true);
     }
-  }, [update]);
+  }, [update, locale, t]);
 
   const dismissLater = useCallback(() => {
     if (update?.version) rememberDismissed(update.version);
@@ -140,7 +147,11 @@ export function useUpdater(checkOnMount = true) {
         if (next) {
           setUpdate(next);
           setStatus("available");
-          setMessage(`v${next.version} disponible`);
+          setMessage(
+            translate(locale, "update.versionAvailable", {
+              version: next.version,
+            }),
+          );
           if (!wasDismissed(next.version)) {
             setPromptOpen(true);
           }
@@ -152,7 +163,7 @@ export function useUpdater(checkOnMount = true) {
     return () => {
       cancelled = true;
     };
-  }, [checkOnMount]);
+  }, [checkOnMount, locale]);
 
   return {
     status,

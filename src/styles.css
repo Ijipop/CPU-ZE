@@ -78,8 +78,8 @@ body {
 }
 
 .app-compact {
-  padding: var(--titlebar-h) 10px 8px;
-  gap: 6px;
+  padding: var(--titlebar-h) 8px 4px;
+  gap: 4px;
 }
 
 .app-body {
@@ -629,6 +629,58 @@ body {
 .footer-right {
   margin-left: auto;
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lang-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-mute);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 5px 8px;
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.lang-btn + .lang-btn {
+  border-left: 1px solid var(--border);
+}
+
+.lang-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.lang-btn.is-active {
+  color: var(--accent);
+  background: rgba(46, 196, 182, 0.14);
+}
+
+.titlebar-controls .lang-toggle {
+  margin-right: 2px;
+}
+
+.titlebar-controls .lang-btn {
+  padding: 4px 7px;
+  font-size: 0.62rem;
 }
 
 .autostart {
@@ -1528,8 +1580,9 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 5px;
+  padding-top: 2px;
 }
 
 .mini-row {
@@ -1547,7 +1600,7 @@ body {
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .mini-label {
@@ -1570,7 +1623,7 @@ body {
 }
 
 .mini-bar {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
@@ -1585,9 +1638,10 @@ body {
 .mini-temps {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--text-dim);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  min-height: 0;
 }
 
 .mini-expand {
@@ -1597,12 +1651,12 @@ body {
   background: rgba(46, 196, 182, 0.12);
   color: var(--accent);
   font-family: var(--font-ui);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 2px 7px;
+  border-radius: 5px;
   cursor: pointer;
 }
 

@@ -3,6 +3,8 @@ import type { ProcessInfo, ProcessTabId } from "../types";
 import { ContextMenu } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useToast } from "./Toast";
+import { useLocale } from "../i18n/LocaleContext";
+import { formatRamMbLocalized, localizeBackendError } from "../i18n";
 
 const SENSITIVE_PROCESS_NAMES = new Set([
   "explorer.exe",
@@ -34,11 +36,6 @@ interface MenuState {
   process: ProcessInfo;
 }
 
-function formatRam(mb: number): string {
-  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} Go`;
-  return `${mb.toFixed(0)} Mo`;
-}
-
 function defaultSortForTab(tab: ProcessTabId): { key: SortKey; dir: SortDir } {
   return tab === "cpu"
     ? { key: "cpu", dir: "desc" }
@@ -55,13 +52,18 @@ export function ProcessTable({
   onKill,
 }: ProcessTableProps) {
   const toast = useToast();
+  const { locale, t } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [pendingKill, setPendingKill] = useState<ProcessInfo | null>(null);
   const [killing, setKilling] = useState<number | null>(null);
   const [killError, setKillError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>(() => defaultSortForTab(tab).key);
-  const [sortDir, setSortDir] = useState<SortDir>(() => defaultSortForTab(tab).dir);
+  const [sortKey, setSortKey] = useState<SortKey>(
+    () => defaultSortForTab(tab).key,
+  );
+  const [sortDir, setSortDir] = useState<SortDir>(
+    () => defaultSortForTab(tab).dir,
+  );
 
   useEffect(() => {
     const d = defaultSortForTab(tab);
@@ -70,7 +72,6 @@ export function ProcessTable({
     setMenu(null);
   }, [tab]);
 
-  // Ctrl+wheel zooms WebView2 — while frozen, scroll the list instead.
   useEffect(() => {
     if (!frozen) return;
     const onWheel = (e: WheelEvent) => {
@@ -104,7 +105,6 @@ export function ProcessTable({
           break;
       }
       if (cmp === 0) {
-        // Stable-ish tie-breaker
         cmp = b.cpu - a.cpu || b.memoryBytes - a.memoryBytes;
         return cmp;
       }
@@ -147,9 +147,10 @@ export function ProcessTable({
     setKillError(null);
     try {
       await onKill(process.pid);
-      toast.push(`« ${process.name} » terminé`, "ok");
+      toast.push(t("table.killed", { name: process.name }), "ok");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const raw = e instanceof Error ? e.message : String(e);
+      const msg = localizeBackendError(locale, raw);
       setKillError(msg);
       toast.push(msg, "err");
     } finally {
@@ -167,15 +168,17 @@ export function ProcessTable({
         <input
           className="search"
           type="search"
-          placeholder="Filtrer par nom, PID…"
+          placeholder={t("table.filterPh")}
           value={filter}
           onChange={(e) => onFilterChange(e.target.value)}
-          aria-label="Filtrer les processus"
+          aria-label={t("table.filterAria")}
         />
-        <span className="table-hint mono">{sorted.length} affichés</span>
+        <span className="table-hint mono">
+          {t("table.shown", { count: sorted.length })}
+        </span>
         {frozen && (
-          <span className="freeze-badge" title="Molette = scroll · Relâche Ctrl pour reprendre">
-            Figé · Ctrl
+          <span className="freeze-badge" title={t("table.frozenTitle")}>
+            {t("table.frozen")}
           </span>
         )}
       </div>
@@ -199,7 +202,8 @@ export function ProcessTable({
                   className={`th-sort ${sortKey === "name" ? "is-active" : ""}`}
                   onClick={() => toggleSort("name")}
                 >
-                  Nom{sortMark("name")}
+                  {t("table.colName")}
+                  {sortMark("name")}
                 </button>
               </th>
               <th className="col-pid">
@@ -211,10 +215,7 @@ export function ProcessTable({
                   PID{sortMark("pid")}
                 </button>
               </th>
-              <th
-                className="col-cpu"
-                title="% du CPU total — même formule que le Gestionnaire des tâches (Processes)"
-              >
+              <th className="col-cpu" title={t("table.cpuTitle")}>
                 <button
                   type="button"
                   className={`th-sort ${sortKey === "cpu" ? "is-active" : ""}`}
@@ -223,16 +224,14 @@ export function ProcessTable({
                   CPU %{sortMark("cpu")}
                 </button>
               </th>
-              <th
-                className="col-ram"
-                title="Private Working Set — même métrique que la colonne Mémoire du Gestionnaire des tâches"
-              >
+              <th className="col-ram" title={t("table.ramTitle")}>
                 <button
                   type="button"
                   className={`th-sort ${sortKey === "ram" ? "is-active" : ""}`}
                   onClick={() => toggleSort("ram")}
                 >
-                  Mémoire{sortMark("ram")}
+                  {t("table.colMemory")}
+                  {sortMark("ram")}
                 </button>
               </th>
             </tr>
@@ -283,9 +282,11 @@ export function ProcessTable({
                       </div>
                       <span
                         className="mono cell-num cell-num-ram"
-                        title={`${ramPct.toFixed(2)}% de la RAM`}
+                        title={t("table.ramOfTotal", {
+                          pct: ramPct.toFixed(2),
+                        })}
                       >
-                        {formatRam(p.memoryMb)}
+                        {formatRamMbLocalized(locale, p.memoryMb)}
                         <span className="ram-pct"> {ramPct.toFixed(1)}%</span>
                       </span>
                     </div>
@@ -297,8 +298,8 @@ export function ProcessTable({
               <tr>
                 <td colSpan={4} className="empty-row">
                   {filter.trim()
-                    ? `Aucun résultat pour « ${filter.trim()} »`
-                    : "Aucun processus trouvé"}
+                    ? t("table.emptyFilter", { query: filter.trim() })
+                    : t("table.empty")}
                 </td>
               </tr>
             )}
@@ -318,13 +319,19 @@ export function ProcessTable({
 
       {pendingKill && (
         <ConfirmDialog
-          title="Terminer la tâche"
+          title={t("table.killTitle")}
           message={
             sensitive
-              ? `« ${pendingKill.name} » (PID ${pendingKill.pid}) est un processus Windows sensible — souvent protégé. Continuer ?`
-              : `Terminer « ${pendingKill.name} » (PID ${pendingKill.pid}) ?`
+              ? t("table.killSensitive", {
+                  name: pendingKill.name,
+                  pid: pendingKill.pid,
+                })
+              : t("table.killConfirm", {
+                  name: pendingKill.name,
+                  pid: pendingKill.pid,
+                })
           }
-          confirmLabel="Terminer"
+          confirmLabel={t("table.killBtn")}
           danger
           onConfirm={() => void confirmKill()}
           onCancel={() => setPendingKill(null)}

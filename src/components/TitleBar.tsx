@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
+import { LanguageToggle } from "./LanguageToggle";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface TitleBarProps {
   compact: boolean;
@@ -18,6 +20,7 @@ export function TitleBar({
   onOpenAbout,
 }: TitleBarProps) {
   const win = getCurrentWindow();
+  const { t } = useLocale();
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export function TitleBar({
         {!compact && (
           <>
             <span className="titlebar-sub" data-tauri-drag-region>
-              Mini Task Manager
+              {t("brand.sub")}
             </span>
             <span className="titlebar-version mono" data-tauri-drag-region>
               v{version || "…"}
@@ -52,13 +55,15 @@ export function TitleBar({
       </div>
 
       <div className="titlebar-controls">
+        {!compact && <LanguageToggle />}
+
         {!compact && (
           <>
             <button
               type="button"
               className="tb-btn"
-              title="Raccourcis (F1)"
-              aria-label="Aide raccourcis"
+              title={t("title.help")}
+              aria-label={t("title.helpAria")}
               onClick={onOpenHelp}
             >
               ?
@@ -66,8 +71,8 @@ export function TitleBar({
             <button
               type="button"
               className="tb-btn tb-about"
-              title="À propos"
-              aria-label="À propos"
+              title={t("title.about")}
+              aria-label={t("title.about")}
               onClick={onOpenAbout}
             >
               i
@@ -78,8 +83,8 @@ export function TitleBar({
         <button
           type="button"
           className="tb-btn tb-compact"
-          title={compact ? "Agrandir (Alt+Entrée)" : "Mode micro (Alt+Entrée)"}
-          aria-label={compact ? "Quitter le mode micro" : "Passer en mode micro"}
+          title={compact ? t("title.expand") : t("title.micro")}
+          aria-label={compact ? t("title.exitMicro") : t("title.enterMicro")}
           onClick={onToggleCompact}
         >
           {compact ? (
@@ -104,8 +109,8 @@ export function TitleBar({
             <button
               type="button"
               className="tb-btn"
-              title="Réduire"
-              aria-label="Réduire"
+              title={t("title.minimize")}
+              aria-label={t("title.minimize")}
               onClick={() => void win.minimize()}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
@@ -115,8 +120,8 @@ export function TitleBar({
             <button
               type="button"
               className="tb-btn"
-              title={maximized ? "Restaurer" : "Agrandir"}
-              aria-label={maximized ? "Restaurer" : "Agrandir"}
+              title={maximized ? t("title.restore") : t("title.maximize")}
+              aria-label={maximized ? t("title.restore") : t("title.maximize")}
               onClick={() => void win.toggleMaximize()}
             >
               {maximized ? (
@@ -141,8 +146,8 @@ export function TitleBar({
         <button
           type="button"
           className="tb-btn tb-close"
-          title="Fermer"
-          aria-label="Fermer"
+          title={t("title.close")}
+          aria-label={t("title.close")}
           onClick={() => void win.close()}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>

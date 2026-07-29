@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from "react";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface ContextMenuProps {
   x: number;
@@ -16,6 +17,7 @@ export function ContextMenu({
   onClose,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     const onPointer = (e: MouseEvent) => {
@@ -45,7 +47,7 @@ export function ContextMenu({
       className="context-menu"
       style={style}
       role="menu"
-      aria-label={`Actions pour ${processName}`}
+      aria-label={t("ctx.actionsFor", { name: processName })}
     >
       <button
         type="button"
@@ -56,7 +58,7 @@ export function ContextMenu({
           onClose();
         }}
       >
-        Terminer la tâche
+        {t("ctx.endTask")}
       </button>
     </div>
   );

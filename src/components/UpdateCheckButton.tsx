@@ -1,4 +1,5 @@
 import type { UpdateStatus } from "../hooks/useUpdater";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface UpdateCheckButtonProps {
   status: UpdateStatus;
@@ -11,6 +12,7 @@ export function UpdateCheckButton({
   message,
   onCheck,
 }: UpdateCheckButtonProps) {
+  const { t } = useLocale();
   const busy =
     status === "checking" ||
     status === "downloading" ||
@@ -20,16 +22,16 @@ export function UpdateCheckButton({
     status === "checking"
       ? "…"
       : status === "downloading" || status === "installing"
-        ? "MAJ"
-        : "MàJ";
+        ? t("update.btnBusy")
+        : t("update.btn");
 
   const title =
     message ??
     (status === "checking"
-      ? "Vérification…"
+      ? t("update.checking")
       : status === "available"
-        ? "Mise à jour disponible"
-        : "Vérifier les mises à jour");
+        ? t("update.available")
+        : t("update.check"));
 
   return (
     <button
@@ -38,7 +40,7 @@ export function UpdateCheckButton({
       onClick={() => void onCheck()}
       disabled={busy}
       title={title}
-      aria-label="Vérifier les mises à jour"
+      aria-label={t("update.check")}
     >
       <span className="maj-orb" aria-hidden />
       <span className="maj-label">{label}</span>

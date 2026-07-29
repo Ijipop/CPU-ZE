@@ -1,18 +1,23 @@
+import { useLocale } from "../i18n/LocaleContext";
+import type { MessageKey } from "../i18n";
+
 interface ShortcutsHelpProps {
   onClose: () => void;
 }
 
-const SHORTCUTS: { keys: string; desc: string }[] = [
-  { keys: "Alt+Entrée", desc: "Agrandir / réduire (mode micro)" },
-  { keys: "Ctrl (maintenir)", desc: "Figer la liste (molette = scroll)" },
-  { keys: "Clic droit", desc: "Menu → Terminer la tâche" },
-  { keys: "Mode micro", desc: "HUD compact always-on-top (titlebar)" },
-  { keys: "Clic RAM", desc: "Basculer Go ↔ % (header / HUD)" },
-  { keys: "1 / 2 / 3", desc: "Onglets CPU / RAM / Temp" },
-  { keys: "F1 ou ?", desc: "Cette aide" },
+const SHORTCUTS: { keys: MessageKey; desc: MessageKey }[] = [
+  { keys: "help.keys.altEnter", desc: "help.altEnter" },
+  { keys: "help.keys.ctrl", desc: "help.ctrl" },
+  { keys: "help.keys.rightClick", desc: "help.rightClick" },
+  { keys: "help.keys.micro", desc: "help.micro" },
+  { keys: "help.keys.ram", desc: "help.ramClick" },
+  { keys: "help.keys.tabs", desc: "help.tabs" },
+  { keys: "help.keys.f1", desc: "help.f1" },
 ];
 
 export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
+  const { t } = useLocale();
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
@@ -23,19 +28,24 @@ export function ShortcutsHelp({ onClose }: ShortcutsHelpProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="help-title" className="modal-title">
-          Raccourcis
+          {t("help.title")}
         </h2>
         <dl className="shortcuts-list">
           {SHORTCUTS.map((s) => (
             <div key={s.keys} className="shortcut-row">
-              <dt className="mono shortcut-keys">{s.keys}</dt>
-              <dd className="shortcut-desc">{s.desc}</dd>
+              <dt className="mono shortcut-keys">{t(s.keys)}</dt>
+              <dd className="shortcut-desc">{t(s.desc)}</dd>
             </div>
           ))}
         </dl>
         <div className="modal-actions">
-          <button type="button" className="modal-btn" onClick={onClose} autoFocus>
-            Fermer
+          <button
+            type="button"
+            className="modal-btn"
+            onClick={onClose}
+            autoFocus
+          >
+            {t("help.close")}
           </button>
         </div>
       </div>
