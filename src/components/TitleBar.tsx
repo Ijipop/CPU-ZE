@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
-import { LanguageToggle } from "./LanguageToggle";
+import { TitleBarMenu } from "./TitleBarMenu";
 import { useLocale } from "../i18n/LocaleContext";
 
 interface TitleBarProps {
@@ -55,29 +55,8 @@ export function TitleBar({
       </div>
 
       <div className="titlebar-controls">
-        {!compact && <LanguageToggle />}
-
         {!compact && (
-          <>
-            <button
-              type="button"
-              className="tb-btn"
-              title={t("title.help")}
-              aria-label={t("title.helpAria")}
-              onClick={onOpenHelp}
-            >
-              ?
-            </button>
-            <button
-              type="button"
-              className="tb-btn tb-about"
-              title={t("title.about")}
-              aria-label={t("title.about")}
-              onClick={onOpenAbout}
-            >
-              i
-            </button>
-          </>
+          <TitleBarMenu onOpenHelp={onOpenHelp} onOpenAbout={onOpenAbout} />
         )}
 
         <button
