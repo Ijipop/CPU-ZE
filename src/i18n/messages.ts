@@ -14,6 +14,7 @@ export const fr = {
   "title.restore": "Restaurer",
   "title.maximize": "Agrandir",
   "title.close": "Fermer",
+  "title.menu": "Menu",
 
   "lang.fr": "FR",
   "lang.en": "EN",
@@ -185,6 +186,7 @@ export const en: Record<MessageKey, string> = {
   "title.restore": "Restore",
   "title.maximize": "Maximize",
   "title.close": "Close",
+  "title.menu": "Menu",
 
   "lang.fr": "FR",
   "lang.en": "EN",

@@ -674,13 +674,109 @@ body {
   background: rgba(46, 196, 182, 0.14);
 }
 
-.titlebar-controls .lang-toggle {
-  margin-right: 2px;
+.tb-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  margin: 0 6px;
+  height: calc(var(--titlebar-h) - 12px);
 }
 
-.titlebar-controls .lang-btn {
-  padding: 4px 7px;
-  font-size: 0.62rem;
+.tb-menu-btn {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  height: 100%;
+  padding: 0 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.tb-menu-btn:hover,
+.tb-menu-btn.is-open {
+  color: var(--accent);
+  background: rgba(46, 196, 182, 0.12);
+  border-color: rgba(46, 196, 182, 0.35);
+}
+
+.tb-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 120;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: #121c26;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fade-in 0.12s ease;
+}
+
+.tb-menu-lang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+}
+
+.tb-menu-label {
+  color: var(--text-mute);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tb-menu-sep {
+  height: 1px;
+  margin: 2px 4px;
+  background: rgba(120, 160, 180, 0.16);
+}
+
+.tb-menu-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tb-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.tb-menu-glyph {
+  width: 1.1rem;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .autostart {
