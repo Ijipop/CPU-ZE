@@ -18,6 +18,8 @@ export interface UseProcessesOptions {
   detail?: boolean;
   /** Pause polling while the window is hidden (tray). */
   pauseWhenHidden?: boolean;
+  /** Pause polling while the window is morphing (micro ↔ normal). */
+  paused?: boolean;
 }
 
 export function useProcesses(
@@ -27,18 +29,21 @@ export function useProcesses(
 ) {
   const detail = options.detail ?? true;
   const pauseWhenHidden = options.pauseWhenHidden ?? true;
+  const paused = options.paused ?? false;
   const [snapshot, setSnapshot] = useState<SystemSnapshot>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(true);
   const alive = useRef(true);
   const frozenRef = useRef(frozen);
+  const pausedRef = useRef(paused);
   const inFlight = useRef(false);
   const detailRef = useRef(detail);
   /** Skip PWS enrichment on the first detail tick after light mode (fast expand). */
   const skipEnrichOnce = useRef(false);
   const wasDetail = useRef(detail);
   frozenRef.current = frozen;
+  pausedRef.current = paused;
   detailRef.current = detail;
 
   useEffect(() => {
@@ -49,7 +54,7 @@ export function useProcesses(
   }, [detail]);
 
   const refresh = useCallback(async (opts?: { force?: boolean; enrichPws?: boolean }) => {
-    if (frozenRef.current) return;
+    if (frozenRef.current || pausedRef.current) return;
     if (inFlight.current && !opts?.force) return;
     inFlight.current = true;
     const enrich =
@@ -132,26 +137,26 @@ export function useProcesses(
 
   useEffect(() => {
     alive.current = true;
-    if (pauseWhenHidden && !visible) {
+    if (paused || (pauseWhenHidden && !visible)) {
       return () => {
         alive.current = false;
       };
     }
     void refresh({ force: true });
     const id = window.setInterval(() => {
-      if (!frozenRef.current) void refresh();
+      if (!frozenRef.current && !pausedRef.current) void refresh();
     }, intervalMs);
     return () => {
       alive.current = false;
       window.clearInterval(id);
     };
-  }, [refresh, intervalMs, visible, pauseWhenHidden, detail]);
+  }, [refresh, intervalMs, visible, pauseWhenHidden, detail, paused]);
 
   useEffect(() => {
-    if (!frozen && (!pauseWhenHidden || visible)) {
+    if (!frozen && !paused && (!pauseWhenHidden || visible)) {
       void refresh({ force: true });
     }
-  }, [frozen, refresh, pauseWhenHidden, visible]);
+  }, [frozen, paused, refresh, pauseWhenHidden, visible]);
 
   return { snapshot, error, loading, refresh, kill };
 }

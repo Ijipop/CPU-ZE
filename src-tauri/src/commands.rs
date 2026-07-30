@@ -2,14 +2,14 @@ use crate::precision::CpuTracker;
 use crate::win_metrics::{self, SystemCpuTracker};
 use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 use nvml_wrapper::Nvml;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use sysinfo::{
     Components, Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind,
 };
-use tauri::State;
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, State};
 
 pub struct AppState {
     pub sys: Mutex<System>,
@@ -454,13 +454,135 @@ pub fn get_temperatures(state: State<'_, AppState>) -> Result<TemperatureSnapsho
     })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OuterGeom {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale_factor: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestoreGeom {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Atomically apply min-size + outer size/pos + always-on-top (one IPC round-trip).
+#[tauri::command]
+pub fn apply_window_layout(
+    app: AppHandle,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    min_width: f64,
+    min_height: f64,
+    always_on_top: bool,
+    size_logical: Option<bool>,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Fenêtre principale introuvable".to_string())?;
+    window
+        .set_min_size(Some(LogicalSize::new(min_width, min_height)))
+        .map_err(|e| e.to_string())?;
+    if size_logical.unwrap_or(false) {
+        window
+            .set_size(LogicalSize::new(width as f64, height as f64))
+            .map_err(|e| e.to_string())?;
+    } else {
+        window
+            .set_size(PhysicalSize::new(width.max(1), height.max(1)))
+            .map_err(|e| e.to_string())?;
+    }
+    window
+        .set_position(PhysicalPosition::new(x, y))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_always_on_top(always_on_top)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Micro ↔ normal in one IPC: capture current outer geom, then snap chrome.
+/// Returns the previous outer geometry so the UI can persist it.
+#[tauri::command]
+pub fn set_window_compact_mode(
+    app: AppHandle,
+    compact: bool,
+    restore: Option<RestoreGeom>,
+) -> Result<OuterGeom, String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Fenêtre principale introuvable".to_string())?;
+
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
+    let prev = OuterGeom {
+        x: pos.x,
+        y: pos.y,
+        width: size.width,
+        height: size.height,
+        scale_factor,
+    };
+
+    if compact {
+        let w = (320.0_f64 * scale_factor).round().max(1.0) as u32;
+        let h = (90.0_f64 * scale_factor).round().max(1.0) as u32;
+        window
+            .set_min_size(Some(LogicalSize::new(280.0, 84.0)))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_size(PhysicalSize::new(w, h))
+            .map_err(|e| e.to_string())?;
+        // Shrink in place — no monitor enumeration / reposition dance.
+        window
+            .set_position(PhysicalPosition::new(pos.x, pos.y))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_always_on_top(true)
+            .map_err(|e| e.to_string())?;
+    } else {
+        let g = restore.unwrap_or(RestoreGeom {
+            x: pos.x,
+            y: pos.y,
+            width: (980.0 * scale_factor).round().max(1.0) as u32,
+            height: (680.0 * scale_factor).round().max(1.0) as u32,
+        });
+        // Drop min first so enlarge isn't clamped by the compact floor.
+        window
+            .set_min_size(Some(LogicalSize::new(280.0, 84.0)))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_size(PhysicalSize::new(g.width.max(1), g.height.max(1)))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_position(PhysicalPosition::new(g.x, g.y))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_min_size(Some(LogicalSize::new(420.0, 320.0)))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_always_on_top(false)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(prev)
+}
+
 /// Hide or restore the main window on the Windows taskbar.
 /// Uses WS_EX_TOOLWINDOW because Tauri's setSkipTaskbar is unreliable on Win10/11.
 #[tauri::command]
 pub fn set_hidden_from_taskbar(app: tauri::AppHandle, hide: bool) -> Result<(), String> {
     #[cfg(windows)]
     {
-        use tauri::Manager;
         use windows::Win32::Foundation::HWND;
         use windows::Win32::UI::WindowsAndMessaging::{
             GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, SWP_FRAMECHANGED,

@@ -91,6 +91,19 @@ body {
   overflow: hidden;
 }
 
+.view-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  overflow: hidden;
+}
+
+.view-pane[hidden] {
+  display: none !important;
+}
+
 /* Solid cover during window morph — hides WebView/DWM ghost frames. */
 .morph-veil {
   position: absolute;
