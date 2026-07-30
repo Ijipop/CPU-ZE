@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   availableMonitors,
   getCurrentWindow,
-  LogicalSize,
-  PhysicalPosition,
-  PhysicalSize,
   primaryMonitor,
   type Monitor,
 } from "@tauri-apps/api/window";
@@ -46,21 +44,19 @@ const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 84 };
 const COMPACT_SIZE = { width: 320, height: 90 };
 
-function nextPaint(): Promise<void> {
+/** One frame so the morph veil can paint before the window chrome snaps. */
+function nextFrame(): Promise<void> {
   return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    requestAnimationFrame(() => resolve());
   });
 }
 
-/** One-shot outer bounds — multi-frame morph is too slow via Tauri IPC on Windows. */
-async function snapWindowBounds(
-  win: ReturnType<typeof getCurrentWindow>,
-  to: PhysicalGeom,
-): Promise<void> {
-  await Promise.all([
-    win.setSize(new PhysicalSize(Math.max(1, to.width), Math.max(1, to.height))),
-    win.setPosition(new PhysicalPosition(to.x, to.y)),
-  ]);
+interface OuterGeomDto {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scaleFactor: number;
 }
 
 function pointOnMonitor(x: number, y: number, m: Monitor): boolean {
@@ -71,7 +67,7 @@ function pointOnMonitor(x: number, y: number, m: Monitor): boolean {
   return x >= px && y >= py && x < px + w && y < py + h;
 }
 
-/** Keep a saved physical origin visible on some monitor (multi-display safe). */
+/** Keep a saved physical origin visible on some monitor (startup only). */
 async function clampPosition(
   x: number,
   y: number,
@@ -96,31 +92,6 @@ async function clampPosition(
   };
 }
 
-/** Stay on the monitor under `anchor` when resizing (micro ↔ normal). */
-async function stayOnCurrentMonitor(
-  anchorX: number,
-  anchorY: number,
-  width: number,
-  height: number,
-): Promise<PhysicalPos> {
-  const monitors = await availableMonitors();
-  if (monitors.length === 0) return { x: anchorX, y: anchorY };
-
-  const mon =
-    monitors.find((m) => pointOnMonitor(anchorX + 16, anchorY + 16, m)) ??
-    monitors.find((m) => pointOnMonitor(anchorX, anchorY, m)) ??
-    (await primaryMonitor()) ??
-    monitors[0];
-
-  const margin = 8;
-  const maxX = mon.position.x + Math.max(margin, mon.size.width - width - margin);
-  const maxY = mon.position.y + Math.max(margin, mon.size.height - height - margin);
-  return {
-    x: Math.min(Math.max(anchorX, mon.position.x + margin), maxX),
-    y: Math.min(Math.max(anchorY, mon.position.y + margin), maxY),
-  };
-}
-
 function AppInner() {
   const { t } = useLocale();
   const [tab, setTab] = useState<TabId>("cpu");
@@ -133,20 +104,22 @@ function AppInner() {
   const [showHelp, setShowHelp] = useState(false);
   const [geomReady, setGeomReady] = useState(false);
   const [morphing, setMorphing] = useState(false);
+  /** Defer full process refresh until after expand paints (avoids multi-second hitch). */
+  const [allowDetail, setAllowDetail] = useState(true);
   const normalGeom = useRef<PhysicalGeom | null>(loadNormalGeom());
   const compactPos = useRef<PhysicalPos | null>(loadCompactPos());
   const compactRef = useRef(false);
   const morphingRef = useRef(false);
   const skipPersist = useRef(false);
+  const detailTimer = useRef<number | undefined>(undefined);
   const frozen = useCtrlHeld();
-  // Defer detail polls until morph finishes so expand isn't blocked by OpenProcess.
   const processDetail =
-    !compact && !morphing && (tab === "cpu" || tab === "ram");
+    !compact && allowDetail && (tab === "cpu" || tab === "ram");
   const processInterval = compact ? 2000 : tab === "temp" ? 2500 : 1200;
   const { snapshot, error, loading, kill } = useProcesses(
     processInterval,
     frozen && !compact,
-    { detail: processDetail, pauseWhenHidden: true },
+    { detail: processDetail, pauseWhenHidden: true, paused: morphing },
   );
   const tempsEnabled = true;
   const tempsInterval = tab === "temp" && !compact ? 1500 : 2500;
@@ -162,6 +135,24 @@ function AppInner() {
   useEffect(() => {
     compactRef.current = compact;
   }, [compact]);
+
+  useEffect(() => {
+    return () => {
+      if (detailTimer.current !== undefined) {
+        window.clearTimeout(detailTimer.current);
+      }
+    };
+  }, []);
+
+  const scheduleDetail = useCallback((ms: number) => {
+    if (detailTimer.current !== undefined) {
+      window.clearTimeout(detailTimer.current);
+    }
+    detailTimer.current = window.setTimeout(() => {
+      detailTimer.current = undefined;
+      setAllowDetail(true);
+    }, ms);
+  }, []);
 
   const persistCurrent = useCallback(async () => {
     if (skipPersist.current) return;
@@ -192,14 +183,13 @@ function AppInner() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const win = getCurrentWindow();
       const wantCompact = loadStartCompact();
       try {
         skipPersist.current = true;
         if (wantCompact) {
           const raw = compactPos.current ?? {
-            x: (normalGeom.current?.x ?? 80),
-            y: (normalGeom.current?.y ?? 80),
+            x: normalGeom.current?.x ?? 80,
+            y: normalGeom.current?.y ?? 80,
           };
           const pos = await clampPosition(
             raw.x,
@@ -207,20 +197,35 @@ function AppInner() {
             COMPACT_SIZE.width,
             COMPACT_SIZE.height,
           );
-          await win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height));
-          await win.setSize(new LogicalSize(COMPACT_SIZE.width, COMPACT_SIZE.height));
-          await win.setPosition(new PhysicalPosition(pos.x, pos.y));
-          await win.setAlwaysOnTop(true);
+          // Logical size for first paint; DPI applied by the OS / Tauri.
+          await invoke("apply_window_layout", {
+            x: pos.x,
+            y: pos.y,
+            width: COMPACT_SIZE.width,
+            height: COMPACT_SIZE.height,
+            minWidth: COMPACT_MIN.width,
+            minHeight: COMPACT_MIN.height,
+            alwaysOnTop: true,
+            sizeLogical: true,
+          });
           if (!cancelled) {
             compactRef.current = true;
+            setAllowDetail(false);
             setCompact(true);
           }
         } else if (normalGeom.current) {
           const g = normalGeom.current;
           const pos = await clampPosition(g.x, g.y, g.width, g.height);
-          await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
-          await win.setSize(new PhysicalSize(g.width, g.height));
-          await win.setPosition(new PhysicalPosition(pos.x, pos.y));
+          await invoke("apply_window_layout", {
+            x: pos.x,
+            y: pos.y,
+            width: g.width,
+            height: g.height,
+            minWidth: NORMAL_MIN.width,
+            minHeight: NORMAL_MIN.height,
+            alwaysOnTop: false,
+            sizeLogical: false,
+          });
         }
       } catch (e) {
         console.error(e);
@@ -268,36 +273,34 @@ function AppInner() {
 
   const enterCompact = useCallback(async () => {
     if (morphingRef.current || compactRef.current) return;
-    const win = getCurrentWindow();
     try {
       morphingRef.current = true;
       setMorphing(true);
+      setAllowDetail(false);
+      if (detailTimer.current !== undefined) {
+        window.clearTimeout(detailTimer.current);
+        detailTimer.current = undefined;
+      }
       skipPersist.current = true;
-      await nextPaint();
+      await nextFrame();
 
-      const size = await win.outerSize();
-      const pos = await win.outerPosition();
-      const g = { x: pos.x, y: pos.y, width: size.width, height: size.height };
+      const prev = await invoke<OuterGeomDto>("set_window_compact_mode", {
+        compact: true,
+        restore: null,
+      });
+      const g = {
+        x: prev.x,
+        y: prev.y,
+        width: prev.width,
+        height: prev.height,
+      };
       normalGeom.current = g;
       saveNormalGeom(g);
-
-      const sf = await win.scaleFactor();
-      const targetW = Math.round(COMPACT_SIZE.width * sf);
-      const targetH = Math.round(COMPACT_SIZE.height * sf);
-      const stay = await stayOnCurrentMonitor(pos.x, pos.y, targetW, targetH);
-      const to = { x: stay.x, y: stay.y, width: targetW, height: targetH };
-
-      await Promise.all([
-        win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
-        win.setAlwaysOnTop(true),
-        snapWindowBounds(win, to),
-      ]);
-
-      compactPos.current = { x: to.x, y: to.y };
+      compactPos.current = { x: prev.x, y: prev.y };
       saveCompactPos(compactPos.current);
+
       compactRef.current = true;
       setCompact(true);
-      await nextPaint();
     } catch (e) {
       console.error(e);
     } finally {
@@ -309,45 +312,47 @@ function AppInner() {
 
   const exitCompact = useCallback(async () => {
     if (morphingRef.current || !compactRef.current) return;
-    const win = getCurrentWindow();
     try {
       morphingRef.current = true;
       setMorphing(true);
+      setAllowDetail(false);
+      if (detailTimer.current !== undefined) {
+        window.clearTimeout(detailTimer.current);
+        detailTimer.current = undefined;
+      }
       skipPersist.current = true;
-      await nextPaint();
-
-      const pos = await win.outerPosition();
-      compactPos.current = { x: pos.x, y: pos.y };
-      saveCompactPos(compactPos.current);
+      await nextFrame();
 
       const g = normalGeom.current;
-      const width = g?.width ?? Math.round(980 * (await win.scaleFactor()));
-      const height = g?.height ?? Math.round(680 * (await win.scaleFactor()));
-      const stay = await stayOnCurrentMonitor(pos.x, pos.y, width, height);
-      const to = { x: stay.x, y: stay.y, width, height };
+      const prev = await invoke<OuterGeomDto>("set_window_compact_mode", {
+        compact: false,
+        restore: g
+          ? { x: g.x, y: g.y, width: g.width, height: g.height }
+          : null,
+      });
+      compactPos.current = { x: prev.x, y: prev.y };
+      saveCompactPos(compactPos.current);
 
-      await Promise.all([
-        win.setAlwaysOnTop(false),
-        win.setMinSize(new LogicalSize(COMPACT_MIN.width, COMPACT_MIN.height)),
-        snapWindowBounds(win, to),
-      ]);
-      await win.setMinSize(new LogicalSize(NORMAL_MIN.width, NORMAL_MIN.height));
+      if (g) {
+        normalGeom.current = g;
+        saveNormalGeom(g);
+      }
 
       compactRef.current = false;
       setCompact(false);
-      normalGeom.current = to;
-      saveNormalGeom(to);
-      await nextPaint();
+      // Let the normal view paint with the cached process list first.
+      scheduleDetail(280);
     } catch (e) {
       console.error(e);
       compactRef.current = false;
       setCompact(false);
+      scheduleDetail(280);
     } finally {
       skipPersist.current = false;
       setMorphing(false);
       morphingRef.current = false;
     }
-  }, []);
+  }, [scheduleDetail]);
 
   const toggleCompact = useCallback(() => {
     if (morphingRef.current) return;
@@ -420,7 +425,72 @@ function AppInner() {
       />
 
       <div className="app-body">
-        {compact ? (
+        {/* Keep both panes mounted — remounting ProcessTable on expand was a multi-second cost. */}
+        <div className="view-pane" hidden={compact} aria-hidden={compact}>
+          <UpdateBanner
+            status={updater.status}
+            update={updater.update}
+            progress={updater.progress}
+            error={updater.error}
+            onInstall={() => void updater.install()}
+            onDismiss={updater.dismiss}
+            suppressAvailable={updater.promptOpen}
+          />
+
+          <HeaderStats
+            totalCpu={snapshot.totalCpu}
+            usedMemory={snapshot.usedMemory}
+            totalMemory={snapshot.totalMemory}
+            processCount={snapshot.processCount || snapshot.processes.length}
+          />
+
+          <ProcessTabs active={tab} onChange={setTab} />
+
+          {tab === "temp" ? (
+            <TemperaturePanel
+              cpu={temps.cpu}
+              gpu={temps.gpu}
+              gpuUtil={temps.gpuUtil}
+              error={tempError}
+              loading={tempLoading}
+              cpuExtremes={tempStats.cpuExtremes}
+              gpuExtremes={tempStats.gpuExtremes}
+              cpuHistory={tempStats.cpuHistory}
+              gpuHistory={tempStats.gpuHistory}
+              onResetExtremes={tempStats.reset}
+            />
+          ) : (
+            <>
+              {error && (
+                <div className="banner-error" role="alert">
+                  {error}
+                </div>
+              )}
+
+              {loading && snapshot.processes.length === 0 ? (
+                <div className="loading">{t("app.loadingProcesses")}</div>
+              ) : (
+                <ProcessTable
+                  processes={snapshot.processes}
+                  totalMemory={snapshot.totalMemory}
+                  tab={processTab}
+                  frozen={frozen}
+                  filter={processFilter}
+                  onFilterChange={setProcessFilter}
+                  onKill={kill}
+                />
+              )}
+            </>
+          )}
+
+          <AppFooter
+            updateStatus={updater.status}
+            updateMessage={updater.message}
+            onCheckUpdate={() => void updater.checkNow()}
+          />
+        </div>
+
+        <div className="view-pane" hidden={!compact} aria-hidden={!compact}>
           <MiniHud
             totalCpu={snapshot.totalCpu}
             usedMemory={snapshot.usedMemory}
@@ -429,71 +499,7 @@ function AppInner() {
             gpuTemp={temps.gpu}
             gpuUtil={temps.gpuUtil}
           />
-        ) : (
-          <>
-            <UpdateBanner
-              status={updater.status}
-              update={updater.update}
-              progress={updater.progress}
-              error={updater.error}
-              onInstall={() => void updater.install()}
-              onDismiss={updater.dismiss}
-              suppressAvailable={updater.promptOpen}
-            />
-
-            <HeaderStats
-              totalCpu={snapshot.totalCpu}
-              usedMemory={snapshot.usedMemory}
-              totalMemory={snapshot.totalMemory}
-              processCount={snapshot.processCount || snapshot.processes.length}
-            />
-
-            <ProcessTabs active={tab} onChange={setTab} />
-
-            {tab === "temp" ? (
-              <TemperaturePanel
-                cpu={temps.cpu}
-                gpu={temps.gpu}
-                gpuUtil={temps.gpuUtil}
-                error={tempError}
-                loading={tempLoading}
-                cpuExtremes={tempStats.cpuExtremes}
-                gpuExtremes={tempStats.gpuExtremes}
-                cpuHistory={tempStats.cpuHistory}
-                gpuHistory={tempStats.gpuHistory}
-                onResetExtremes={tempStats.reset}
-              />
-            ) : (
-              <>
-                {error && (
-                  <div className="banner-error" role="alert">
-                    {error}
-                  </div>
-                )}
-
-                {loading && snapshot.processes.length === 0 ? (
-                  <div className="loading">{t("app.loadingProcesses")}</div>
-                ) : (
-                  <ProcessTable
-                    processes={snapshot.processes}
-                    totalMemory={snapshot.totalMemory}
-                    tab={processTab}
-                    frozen={frozen}
-                    filter={processFilter}
-                    onFilterChange={setProcessFilter}
-                    onKill={kill}
-                  />
-                )}
-              </>
-            )}
-
-            <AppFooter
-              updateStatus={updater.status}
-              updateMessage={updater.message}
-              onCheckUpdate={() => void updater.checkNow()}
-            />
-          </>
-        )}
+        </div>
       </div>
 
       {updater.promptOpen && updater.update && (
