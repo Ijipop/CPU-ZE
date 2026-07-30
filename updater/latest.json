@@ -1,11 +1,11 @@
 {
-    "version": "0.4.7",
-    "notes": "## What's new\n- Bascule micro ↔ normal **beaucoup plus rapide** (resize en un coup, plus de morph multi-IPC)\n- La liste des process n'est plus vidée en micro ; 1er tick sans OpenProcess PWS\n\n## Test\n1. Installe 0.4.7\n2. Alt+Entrée ×10 chaque sens — doit rester snappy\n3. 10 s en micro → démicro → table immédiatement remplie",
-    "pub_date": "2026-07-29T19:15:37Z",
-    "platforms": {
-        "windows-x86_64": {
-            "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVpYRlBJdVJjMGhpWlB3bjBYK002M09PMlJadytlWk5LUjFOZ3lFU3k0TzkzeVFiVUsyQlR1VXhRZjhhOUJxcWdXdDBaeGdRVVVwZ3FFaXJWV1U3d3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1MzUyNDkzCWZpbGU6Q1BVLVpFXzAuNC43X3g2NC1zZXR1cC5leGUKR1M1dUFVVzBKTTg5MDFLekpsSG05SDVub0ZZVHB0dEl0c0F2SjVtYVc1bEJzSUhZNXYrY0pZa1ZXM3BvY2lwRUptK0ZucW96LzZrTVZzd2llekNmQXc9PQo=",
-            "url": "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.7/CPU-ZE_0.4.7_x64-setup.exe"
-        }
-    }
+    "version":  "0.4.8",
+    "notes":  "## CPU-ZE v0.4.8\n\nMicro Ôåö normal toggle performance:\n- Single Rust IPC for window chrome (min-size / size / position / always-on-top)\n- Keep both UI panes mounted (no ProcessTable remount)\n- Defer detail process poll after expand",
+    "pub_date":  "2026-07-30T18:10:36Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVNwSUVNbmtXenNXSlZuYTZBREFJWGRwcy9VaUtQWTdxV1g4eEpQVTVXcEk4T0k2YmJDdkl2Tk1OT3dXTUYrNHRNWi9GNGVtbDV0V21oVjZUZ0I1ZndnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1NDM0OTY5CWZpbGU6Q1BVLVpFXzAuNC44X3g2NC1zZXR1cC5leGUKaDdtbXZ0dDFPTDVGWW5rUlZBSWVBTVUzR1VKVXNNcXpjU1NLVldRdW14VjkvT2RKRDMvUm9kdy9wbnc5cW5mWjZaTXowS3hQV0RnWEdNREJHMzlwREE9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.4.8/CPU-ZE_0.4.8_x64-setup.exe"
+                                         }
+                  }
 }
