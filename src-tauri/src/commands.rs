@@ -33,6 +33,8 @@ pub struct ProcessInfo {
     /// Full working set (private + shared).
     pub working_set_bytes: u64,
     pub path: Option<String>,
+    pub parent_pid: Option<u32>,
+    pub command_line: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -80,8 +82,9 @@ const CRITICAL_PROCESS_NAMES: &[&str] = &[
 ];
 
 /// Cap Win32 OpenProcess calls per tick — hung targets can block for seconds.
-const PWS_MAX_QUERIES_PER_TICK: usize = 48;
-const PWS_CACHE_TTL: Duration = Duration::from_secs(2);
+const PWS_MAX_QUERIES_PER_TICK: usize = 12;
+const PWS_CACHE_TTL: Duration = Duration::from_secs(4);
+const CMD_LINES_MAX_PIDS: usize = 40;
 
 struct PwsCache {
     map: HashMap<u32, (Instant, u64)>,
@@ -105,17 +108,44 @@ fn lock_err(what: &str) -> String {
     format!("Verrou {what} empoisonné — redémarre CPU-ZE")
 }
 
-fn refresh_system(sys: &mut System) {
+/// Cap cmdline payload — some hosts stuff huge argv into the PEB.
+const CMD_LINE_MAX_CHARS: usize = 8 * 1024;
+
+fn format_command_line(process: &sysinfo::Process) -> Option<String> {
+    let parts = process.cmd();
+    if parts.is_empty() {
+        return None;
+    }
+    let mut out = String::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(&part.to_string_lossy());
+        if out.len() >= CMD_LINE_MAX_CHARS {
+            out.truncate(CMD_LINE_MAX_CHARS);
+            out.push('…');
+            break;
+        }
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn refresh_system(sys: &mut System, with_cmd: bool) {
     sys.refresh_cpu_usage();
     sys.refresh_memory();
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing()
-            .with_cpu()
-            .with_memory()
-            .with_exe(UpdateKind::OnlyIfNotSet),
-    );
+    let mut kind = ProcessRefreshKind::nothing()
+        .with_cpu()
+        .with_memory()
+        .with_exe(UpdateKind::OnlyIfNotSet);
+    if with_cmd {
+        kind = kind.with_cmd(UpdateKind::OnlyIfNotSet);
+    }
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
 }
 
 fn refresh_system_light(sys: &mut System) {
@@ -134,6 +164,7 @@ fn build_snapshot(
     tracker: &mut CpuTracker,
     system_cpu: &mut SystemCpuTracker,
     detail: bool,
+    include_cmd: bool,
 ) -> SystemSnapshot {
     let cpu_count = sys.cpus().len().max(1) as u64;
     let total_cpu = system_cpu.update();
@@ -157,7 +188,7 @@ fn build_snapshot(
     }
 
     let mut live_pids = Vec::with_capacity(process_count);
-    let mut processes: Vec<ProcessInfo> = sys
+    let processes: Vec<ProcessInfo> = sys
         .processes()
         .iter()
         .map(|(pid, process)| {
@@ -171,6 +202,8 @@ fn build_snapshot(
             // Prefer Private Working Set later; start from working set (not commit).
             let memory_bytes = working_set_bytes;
 
+            let parent_pid = process.parent().map(|p| p.as_u32()).filter(|&pp| pp != pid_u);
+
             ProcessInfo {
                 pid: pid_u,
                 name: process.name().to_string_lossy().into_owned(),
@@ -182,18 +215,19 @@ fn build_snapshot(
                 path: process
                     .exe()
                     .map(|p| p.to_string_lossy().into_owned()),
+                parent_pid,
+                command_line: if include_cmd {
+                    format_command_line(process)
+                } else {
+                    None
+                },
             }
         })
         .filter(|p| !p.name.is_empty())
         .collect();
 
     tracker.retain(&live_pids);
-
-    processes.sort_by(|a, b| {
-        b.cpu
-            .partial_cmp(&a.cpu)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // FE sorts — skip full-list sort here.
 
     SystemSnapshot {
         total_cpu,
@@ -262,14 +296,23 @@ fn enrich_private_working_set(processes: &mut [ProcessInfo]) {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessCmdLine {
+    pub pid: u32,
+    pub command_line: Option<String>,
+}
+
 #[tauri::command]
 pub fn list_processes(
     state: State<'_, AppState>,
     detail: Option<bool>,
     enrich_pws: Option<bool>,
+    include_cmd: Option<bool>,
 ) -> Result<SystemSnapshot, String> {
     let detail = detail.unwrap_or(true);
     let enrich = enrich_pws.unwrap_or(detail);
+    let include_cmd = include_cmd.unwrap_or(false);
     static WARMED: std::sync::atomic::AtomicBool =
         std::sync::atomic::AtomicBool::new(false);
     let first = !WARMED.swap(true, std::sync::atomic::Ordering::SeqCst);
@@ -285,7 +328,7 @@ pub fn list_processes(
                 .system_cpu
                 .lock()
                 .map_err(|_| lock_err("system_cpu"))?;
-            refresh_system(&mut sys);
+            refresh_system(&mut sys, false);
             let _ = system_cpu.update();
             for (pid, process) in sys.processes() {
                 tracker.seed(pid.as_u32(), process.accumulated_cpu_time());
@@ -306,11 +349,17 @@ pub fn list_processes(
             .map_err(|_| lock_err("system_cpu"))?;
 
         if detail {
-            refresh_system(&mut sys);
+            refresh_system(&mut sys, include_cmd);
         } else {
             refresh_system_light(&mut sys);
         }
-        build_snapshot(&sys, &mut tracker, &mut system_cpu, detail)
+        build_snapshot(
+            &sys,
+            &mut tracker,
+            &mut system_cpu,
+            detail,
+            include_cmd,
+        )
         // locks dropped here before any OpenProcess
     };
 
@@ -319,6 +368,37 @@ pub fn list_processes(
     }
 
     Ok(snapshot)
+}
+
+/// Lazy cmdline fetch for visible / selected PIDs only (keeps list_processes slim).
+#[tauri::command]
+pub fn get_process_command_lines(
+    state: State<'_, AppState>,
+    pids: Vec<u32>,
+) -> Result<Vec<ProcessCmdLine>, String> {
+    let capped: Vec<u32> = pids.into_iter().take(CMD_LINES_MAX_PIDS).collect();
+    if capped.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
+    let pid_list: Vec<Pid> = capped.iter().map(|&p| Pid::from_u32(p)).collect();
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::Some(pid_list.as_slice()),
+        true,
+        ProcessRefreshKind::nothing().with_cmd(UpdateKind::OnlyIfNotSet),
+    );
+
+    let mut out = Vec::with_capacity(capped.len());
+    for pid in capped {
+        if let Some(process) = sys.process(Pid::from_u32(pid)) {
+            out.push(ProcessCmdLine {
+                pid,
+                command_line: format_command_line(process),
+            });
+        }
+    }
+    Ok(out)
 }
 
 fn is_critical_process_name(name: &str) -> bool {
@@ -344,7 +424,7 @@ pub fn kill_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> 
     }
 
     let mut sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
-    refresh_system(&mut sys);
+    refresh_system(&mut sys, false);
     let target = Pid::from_u32(pid);
 
     match sys.process(target) {

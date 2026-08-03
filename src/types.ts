@@ -9,7 +9,11 @@ export interface ProcessInfo {
   privateBytes: number;
   workingSetBytes: number;
   path: string | null;
+  parentPid: number | null;
+  commandLine: string | null;
 }
+
+export type ProcessViewMode = "flat" | "tree" | "group";
 export interface SystemSnapshot {
   totalCpu: number;
   usedMemory: number;
