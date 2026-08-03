@@ -1,7 +1,7 @@
 {
     "version":  "0.5.0",
-    "notes":  "## CPU-ZE v0.5.0\n\n- Process tree / identical grouping (parent PID, cmdline, find/kill parent)\n- Slim IPC + virtualized table + fluidity pass (less WebView2 churn)",
-    "pub_date":  "2026-08-03T16:52:21Z",
+    "notes":  "## CPU-ZE v0.5.0\n\n- Process tree / identical grouping (parent PID, cmdline, find/kill parent)\n- Slim IPC + virtualized table + fluidity pass (less WebView2 churn)\n\n(cache-bust)",
+    "pub_date":  "2026-08-03T16:55:49Z",
     "platforms":  {
                       "windows-x86_64":  {
                                              "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWZVYks0bzZGSUV0Vy9YUmtHVUZ5K0V2L2E3UzBaR3VMRzZEVFhhR2NjdndvNjdkZWRBZU9oa2ZTSkF0WjdHOE5XZEZOSjBUbzhPRGJwZUFseUk0SVEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1Nzc1OTAzCWZpbGU6Q1BVLVpFXzAuNS4wX3g2NC1zZXR1cC5leGUKUXBrRGp2MExDOTJ5RHdwVkpqeUh3UmxwSklGeUpzUEg2L3c1NFhIWElIY1YxcS9FSXdRYUlwRndTMkRhVy9DazZJR1JlL2JnM3NRcldwNW1pcVhJQlE9PQo=",
