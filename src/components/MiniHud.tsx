@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { SensorReading } from "../types";
 import { useLocale } from "../i18n/LocaleContext";
 import { formatBytesLocalized } from "../i18n";
@@ -35,7 +35,7 @@ function heatClass(celsius: number | null | undefined): string {
   return "heat-cool";
 }
 
-export function MiniHud({
+export const MiniHud = memo(function MiniHud({
   totalCpu,
   usedMemory,
   totalMemory,
@@ -135,4 +135,4 @@ export function MiniHud({
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useLocale } from "../i18n/LocaleContext";
 import { formatBytesLocalized } from "../i18n";
 
@@ -23,7 +23,7 @@ function loadRamMode(): RamMode {
   return "bytes";
 }
 
-export function HeaderStats({
+export const HeaderStats = memo(function HeaderStats({
   totalCpu,
   usedMemory,
   totalMemory,
@@ -96,4 +96,4 @@ export function HeaderStats({
       </div>
     </header>
   );
-}
+});

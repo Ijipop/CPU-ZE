@@ -71,13 +71,16 @@ export const fr = {
 
   "ctx.actionsFor": "Actions pour {name}",
   "ctx.endTask": "Terminer la tâche",
+  "ctx.endParent": "Terminer l’application parente",
+  "ctx.findParent": "Trouver l’application parente",
 
-  "table.filterPh": "Filtrer par nom, PID…",
+  "table.filterPh": "Filtrer par nom, PID, chemin…",
   "table.filterAria": "Filtrer les processus",
   "table.shown": "{count} affichés",
   "table.frozen": "Figé · Ctrl",
   "table.frozenTitle": "Molette = scroll · Relâche Ctrl pour reprendre",
   "table.colName": "Nom",
+  "table.colParent": "Parent",
   "table.colMemory": "Mémoire",
   "table.cpuTitle":
     "% du CPU total — même formule que le Gestionnaire des tâches (Processes)",
@@ -91,8 +94,24 @@ export const fr = {
     "« {name} » (PID {pid}) est un processus Windows sensible — souvent protégé. Continuer ?",
   "table.killConfirm": "Terminer « {name} » (PID {pid}) ?",
   "table.killBtn": "Terminer",
+  "table.killParentTitle": "Terminer l’application parente",
+  "table.killHelper":
+    "« {name} » (PID {pid}) est un processus auxiliaire (ex. WebView2). Terminer le parent « {parentName} » (PID {parentPid}) évite de casser d’autres apps qui partagent le même helper.",
+  "table.killParentConfirm":
+    "Terminer le parent « {parentName} » (PID {parentPid}) de « {name} » ?",
+  "table.killParentBtn": "Terminer le parent",
+  "table.killSelfOnlyBtn": "Terminer seulement ce processus",
   "table.killed": "« {name} » terminé",
   "table.killedSelf": "Fermeture de CPU-ZE…",
+  "table.viewFlat": "Liste",
+  "table.viewTree": "Arbre",
+  "table.viewGroup": "Identiques",
+  "table.viewAria": "Mode d’affichage des processus",
+  "table.findParent": "Trouver le parent",
+  "table.findParentAria": "Trouver l’application parente du processus sélectionné",
+  "table.times": "×{count}",
+  "table.noParent": "—",
+  "table.aggHint": "Total sous-arbre (replié)",
 
   "app.loadingProcesses": "Chargement des processus…",
 
@@ -246,13 +265,16 @@ export const en: Record<MessageKey, string> = {
 
   "ctx.actionsFor": "Actions for {name}",
   "ctx.endTask": "End task",
+  "ctx.endParent": "End parent application",
+  "ctx.findParent": "Find parent application",
 
-  "table.filterPh": "Filter by name, PID…",
+  "table.filterPh": "Filter by name, PID, path…",
   "table.filterAria": "Filter processes",
   "table.shown": "{count} shown",
   "table.frozen": "Frozen · Ctrl",
   "table.frozenTitle": "Wheel = scroll · Release Ctrl to resume",
   "table.colName": "Name",
+  "table.colParent": "Parent",
   "table.colMemory": "Memory",
   "table.cpuTitle":
     "% of total CPU — same formula as Task Manager (Processes)",
@@ -266,8 +288,24 @@ export const en: Record<MessageKey, string> = {
     "“{name}” (PID {pid}) is a sensitive Windows process — often protected. Continue?",
   "table.killConfirm": "End “{name}” (PID {pid})?",
   "table.killBtn": "End task",
+  "table.killParentTitle": "End parent application",
+  "table.killHelper":
+    "“{name}” (PID {pid}) is a helper process (e.g. WebView2). Ending parent “{parentName}” (PID {parentPid}) avoids breaking other apps that share the same helper.",
+  "table.killParentConfirm":
+    "End parent “{parentName}” (PID {parentPid}) of “{name}”?",
+  "table.killParentBtn": "End parent",
+  "table.killSelfOnlyBtn": "End only this process",
   "table.killed": "“{name}” ended",
   "table.killedSelf": "Closing CPU-ZE…",
+  "table.viewFlat": "List",
+  "table.viewTree": "Tree",
+  "table.viewGroup": "Identical",
+  "table.viewAria": "Process view mode",
+  "table.findParent": "Find parent",
+  "table.findParentAria": "Find the parent application of the selected process",
+  "table.times": "×{count}",
+  "table.noParent": "—",
+  "table.aggHint": "Subtree total (collapsed)",
 
   "app.loadingProcesses": "Loading processes…",
 

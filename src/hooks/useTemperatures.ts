@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { TemperatureSnapshot } from "../types";
+import { useWindowVisible } from "./useWindowVisible";
 
 const EMPTY: TemperatureSnapshot = {
   cpu: null,
@@ -9,11 +9,25 @@ const EMPTY: TemperatureSnapshot = {
   gpuUtil: null,
 };
 
+function tempsEqual(a: TemperatureSnapshot, b: TemperatureSnapshot): boolean {
+  const roundC = (v: number | null | undefined) =>
+    v == null || Number.isNaN(v) ? null : Math.round(v * 10);
+  const roundU = (v: number | null | undefined) =>
+    v == null || Number.isNaN(v) ? null : Math.round(v);
+  return (
+    roundC(a.cpu?.celsius) === roundC(b.cpu?.celsius) &&
+    roundC(a.gpu?.celsius) === roundC(b.gpu?.celsius) &&
+    roundU(a.gpuUtil) === roundU(b.gpuUtil) &&
+    (a.cpu?.source ?? "") === (b.cpu?.source ?? "") &&
+    (a.gpu?.source ?? "") === (b.gpu?.source ?? "")
+  );
+}
+
 export function useTemperatures(intervalMs = 1000, enabled = true) {
   const [snapshot, setSnapshot] = useState<TemperatureSnapshot>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [visible, setVisible] = useState(true);
+  const visible = useWindowVisible(true);
   const alive = useRef(true);
   const inFlight = useRef(false);
   const enabledRef = useRef(enabled);
@@ -26,7 +40,7 @@ export function useTemperatures(intervalMs = 1000, enabled = true) {
     try {
       const data = await invoke<TemperatureSnapshot>("get_temperatures");
       if (!alive.current) return;
-      setSnapshot(data);
+      setSnapshot((prev) => (tempsEqual(prev, data) ? prev : data));
       setError(null);
     } catch (e) {
       if (!alive.current) return;
@@ -35,32 +49,6 @@ export function useTemperatures(intervalMs = 1000, enabled = true) {
       inFlight.current = false;
       if (alive.current) setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    const win = getCurrentWindow();
-    let unlisten: (() => void) | undefined;
-    void (async () => {
-      try {
-        setVisible(await win.isVisible());
-      } catch {
-        setVisible(true);
-      }
-      unlisten = await win.onFocusChanged(async () => {
-        try {
-          setVisible(await win.isVisible());
-        } catch {
-          /* ignore */
-        }
-      });
-    })();
-    const id = window.setInterval(() => {
-      void win.isVisible().then(setVisible).catch(() => {});
-    }, 2000);
-    return () => {
-      unlisten?.();
-      window.clearInterval(id);
-    };
   }, []);
 
   useEffect(() => {

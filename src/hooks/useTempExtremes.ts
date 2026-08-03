@@ -36,6 +36,13 @@ function pushHistory(prev: number[], celsius: number | null): number[] {
   return next;
 }
 
+interface ExtremesState {
+  cpuExtremes: TempExtremes;
+  gpuExtremes: TempExtremes;
+  cpuHistory: number[];
+  gpuHistory: number[];
+}
+
 /**
  * Accumulates min/avg/max + sparkline history for as long as samples arrive,
  * including while the Temp panel is unmounted (e.g. micro mode).
@@ -44,33 +51,38 @@ export function useTempExtremes(
   cpu: SensorReading | null,
   gpu: SensorReading | null,
 ) {
-  const [cpuExtremes, setCpuExtremes] = useState<TempExtremes>(emptyExtremes);
-  const [gpuExtremes, setGpuExtremes] = useState<TempExtremes>(emptyExtremes);
-  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
-  const [gpuHistory, setGpuHistory] = useState<number[]>([]);
+  const [state, setState] = useState<ExtremesState>(() => ({
+    cpuExtremes: emptyExtremes(),
+    gpuExtremes: emptyExtremes(),
+    cpuHistory: [],
+    gpuHistory: [],
+  }));
 
   useEffect(() => {
-    setCpuExtremes((prev) => updateExtremes(prev, cpu?.celsius ?? null));
-    setCpuHistory((prev) => pushHistory(prev, cpu?.celsius ?? null));
-  }, [cpu]);
-
-  useEffect(() => {
-    setGpuExtremes((prev) => updateExtremes(prev, gpu?.celsius ?? null));
-    setGpuHistory((prev) => pushHistory(prev, gpu?.celsius ?? null));
-  }, [gpu]);
+    const cpuC = cpu?.celsius ?? null;
+    const gpuC = gpu?.celsius ?? null;
+    setState((prev) => ({
+      cpuExtremes: updateExtremes(prev.cpuExtremes, cpuC),
+      gpuExtremes: updateExtremes(prev.gpuExtremes, gpuC),
+      cpuHistory: pushHistory(prev.cpuHistory, cpuC),
+      gpuHistory: pushHistory(prev.gpuHistory, gpuC),
+    }));
+  }, [cpu, gpu]);
 
   const reset = useCallback(() => {
-    setCpuExtremes(fromSample(cpu?.celsius ?? null));
-    setGpuExtremes(fromSample(gpu?.celsius ?? null));
-    setCpuHistory(cpu?.celsius != null ? [cpu.celsius] : []);
-    setGpuHistory(gpu?.celsius != null ? [gpu.celsius] : []);
+    setState({
+      cpuExtremes: fromSample(cpu?.celsius ?? null),
+      gpuExtremes: fromSample(gpu?.celsius ?? null),
+      cpuHistory: cpu?.celsius != null ? [cpu.celsius] : [],
+      gpuHistory: gpu?.celsius != null ? [gpu.celsius] : [],
+    });
   }, [cpu, gpu]);
 
   return {
-    cpuExtremes,
-    gpuExtremes,
-    cpuHistory,
-    gpuHistory,
+    cpuExtremes: state.cpuExtremes,
+    gpuExtremes: state.gpuExtremes,
+    cpuHistory: state.cpuHistory,
+    gpuHistory: state.gpuHistory,
     reset,
   };
 }

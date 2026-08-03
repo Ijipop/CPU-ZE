@@ -5,7 +5,11 @@ interface ContextMenuProps {
   x: number;
   y: number;
   processName: string;
+  canFindParent: boolean;
+  canKillParent: boolean;
   onKill: () => void;
+  onKillParent: () => void;
+  onFindParent: () => void;
   onClose: () => void;
 }
 
@@ -13,7 +17,11 @@ export function ContextMenu({
   x,
   y,
   processName,
+  canFindParent,
+  canKillParent,
   onKill,
+  onKillParent,
+  onFindParent,
   onClose,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -37,8 +45,8 @@ export function ContextMenu({
   }, [onClose]);
 
   const style: CSSProperties = {
-    left: Math.min(x, window.innerWidth - 220),
-    top: Math.min(y, window.innerHeight - 80),
+    left: Math.min(x, window.innerWidth - 260),
+    top: Math.min(y, window.innerHeight - 160),
   };
 
   return (
@@ -49,6 +57,30 @@ export function ContextMenu({
       role="menu"
       aria-label={t("ctx.actionsFor", { name: processName })}
     >
+      <button
+        type="button"
+        className="context-item"
+        role="menuitem"
+        disabled={!canFindParent}
+        onClick={() => {
+          onFindParent();
+          onClose();
+        }}
+      >
+        {t("ctx.findParent")}
+      </button>
+      <button
+        type="button"
+        className="context-item context-danger"
+        role="menuitem"
+        disabled={!canKillParent}
+        onClick={() => {
+          onKillParent();
+          onClose();
+        }}
+      >
+        {t("ctx.endParent")}
+      </button>
       <button
         type="button"
         className="context-item context-danger"

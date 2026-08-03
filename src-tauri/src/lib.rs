@@ -7,9 +7,9 @@ mod win_metrics;
 
 use commands::{
     apply_window_layout, elevated_autostart_disable, elevated_autostart_enable,
-    elevated_autostart_is_enabled, get_temperatures, install_pawnio, kill_process,
-    list_processes, pawnio_status, relaunch_elevated, set_hidden_from_taskbar,
-    set_window_compact_mode, AppState,
+    elevated_autostart_is_enabled, get_process_command_lines, get_temperatures,
+    install_pawnio, kill_process, list_processes, pawnio_status, relaunch_elevated,
+    set_hidden_from_taskbar, set_window_compact_mode, AppState,
 };
 use precision::CpuTracker;
 use std::sync::Mutex;
@@ -38,6 +38,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_processes,
+            get_process_command_lines,
             kill_process,
             get_temperatures,
             pawnio_status,

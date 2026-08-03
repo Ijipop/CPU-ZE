@@ -1,7 +1,10 @@
+import type { ProcessViewMode } from "./types";
+
 const START_COMPACT_KEY = "cpuze.startCompact";
 const GEOM_NORMAL_KEY = "cpuze.geom.normal";
 const GEOM_COMPACT_KEY = "cpuze.geom.compact";
 const MINIMIZE_TO_TRAY_KEY = "cpuze.minimizeToTray";
+const PROCESS_VIEW_KEY = "cpuze.processView";
 
 export interface PhysicalGeom {
   x: number;
@@ -84,4 +87,22 @@ export function loadCompactPos(): PhysicalPos | null {
 
 export function saveCompactPos(p: PhysicalPos) {
   writeJson(GEOM_COMPACT_KEY, p);
+}
+
+export function loadProcessView(): ProcessViewMode {
+  try {
+    const v = localStorage.getItem(PROCESS_VIEW_KEY);
+    if (v === "flat" || v === "tree" || v === "group") return v;
+  } catch {
+    /* ignore */
+  }
+  return "tree";
+}
+
+export function saveProcessView(mode: ProcessViewMode) {
+  try {
+    localStorage.setItem(PROCESS_VIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
 }

@@ -100,8 +100,22 @@ body {
   overflow: hidden;
 }
 
-.view-pane[hidden] {
+.view-pane[hidden],
+.tab-pane[hidden] {
   display: none !important;
+}
+
+.tab-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  overflow: hidden;
+}
+
+html.app-paused .bg-glow {
+  animation: none !important;
 }
 
 /* Solid cover during window morph — hides WebView/DWM ghost frames. */
@@ -254,7 +268,7 @@ body {
 .meter-fill {
   height: 100%;
   border-radius: inherit;
-  transition: width 0.45s ease;
+  transition: none;
 }
 
 .meter-cpu {
@@ -333,7 +347,71 @@ body {
 .table-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.view-seg-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.view-seg-btn + .view-seg-btn {
+  border-left: 1px solid var(--border);
+}
+
+.view-seg-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.view-seg-btn.is-active {
+  color: var(--accent);
+  background: rgba(46, 196, 182, 0.12);
+}
+
+.tb-find-parent {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-find-parent:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.tb-find-parent:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .search {
@@ -435,21 +513,90 @@ body {
   background: rgba(46, 196, 182, 0.07);
 }
 
+.process-table tbody tr.is-selected {
+  background: rgba(46, 196, 182, 0.12);
+}
+
+.process-table tbody tr.is-flash {
+  animation: row-flash 1.2s ease;
+}
+
+@keyframes row-flash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  20%,
+  55% {
+    background: rgba(58, 166, 255, 0.22);
+  }
+}
+
 .row-busy {
   opacity: 0.55;
 }
 
 .col-name {
-  width: 38%;
+  width: 34%;
 }
 
 .col-pid {
-  width: 12%;
+  width: 9%;
+}
+
+.col-parent {
+  width: 9%;
+  color: var(--text-dim);
+  font-size: 0.85rem;
 }
 
 .col-cpu,
 .col-ram {
-  width: 25%;
+  width: 24%;
+}
+
+.th-label {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.proc-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tree-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-top: 1px;
+  flex-shrink: 0;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+
+.tree-toggle.is-open {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+
+.tree-spacer {
+  display: inline-block;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.proc-text {
+  min-width: 0;
+  flex: 1;
 }
 
 .proc-name {
@@ -458,6 +605,22 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+
+.proc-times {
+  color: var(--text-mute);
+  font-weight: 500;
+  font-size: 0.85em;
+}
+
+.proc-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-mute);
+  font-size: 0.72rem;
+  margin-top: 2px;
 }
 
 .col-pid {
@@ -482,8 +645,14 @@ body {
 .cell-bar-fill {
   height: 100%;
   border-radius: inherit;
-  transition: width 0.4s ease;
   min-width: 0;
+  /* Poll-driven widths — transitions force constant compositor work. */
+  transition: none;
+}
+
+.process-table tbody tr.virt-pad td {
+  line-height: 0;
+  font-size: 0;
 }
 
 .cell-num {
@@ -604,8 +773,13 @@ body {
   cursor: pointer;
 }
 
-.context-item:hover {
+.context-item:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.context-item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .context-danger {
@@ -925,7 +1099,8 @@ body {
     font-size: 0.78rem;
   }
 
-  .col-pid {
+  .col-pid,
+  .col-parent {
     display: none;
   }
 
@@ -936,6 +1111,16 @@ body {
   .process-table .col-cpu,
   .process-table .col-ram {
     width: 29%;
+  }
+
+  .view-seg-btn {
+    padding: 6px 8px;
+    font-size: 0.68rem;
+  }
+
+  .tb-find-parent {
+    font-size: 0.72rem;
+    padding: 6px 8px;
   }
 
   .cell-num-ram {
@@ -1329,7 +1514,7 @@ body {
 .temp-meter-fill {
   height: 100%;
   border-radius: inherit;
-  transition: width 0.45s ease;
+  transition: none;
 }
 
 .heat-cool {
@@ -1847,7 +2032,7 @@ body {
 .mini-bar .meter-fill {
   height: 100%;
   border-radius: inherit;
-  transition: width 0.4s ease;
+  transition: none;
 }
 
 .mini-temps {
@@ -1982,6 +2167,7 @@ body {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

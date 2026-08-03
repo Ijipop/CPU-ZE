@@ -115,14 +115,15 @@ function AppInner() {
   const frozen = useCtrlHeld();
   const processDetail =
     !compact && allowDetail && (tab === "cpu" || tab === "ram");
-  const processInterval = compact ? 2000 : tab === "temp" ? 2500 : 1200;
-  const { snapshot, error, loading, kill } = useProcesses(
+  // ~1s detail is enough; faster than that mostly burns WebView2 CPU redrawing the table.
+  const processInterval = compact ? 2500 : tab === "temp" ? 3000 : 1000;
+  const { snapshot, error, loading, kill, requestCommandLines } = useProcesses(
     processInterval,
     frozen && !compact,
     { detail: processDetail, pauseWhenHidden: true, paused: morphing },
   );
   const tempsEnabled = true;
-  const tempsInterval = tab === "temp" && !compact ? 1500 : 2500;
+  const tempsInterval = tab === "temp" && !compact ? 2000 : 4000;
   const {
     snapshot: temps,
     error: tempError,
@@ -135,6 +136,22 @@ function AppInner() {
   useEffect(() => {
     compactRef.current = compact;
   }, [compact]);
+
+  // Pause CSS glow while the document is hidden (tray / other desktop).
+  useEffect(() => {
+    const sync = () => {
+      document.documentElement.classList.toggle(
+        "app-paused",
+        document.hidden,
+      );
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      document.documentElement.classList.remove("app-paused");
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -425,42 +442,33 @@ function AppInner() {
       />
 
       <div className="app-body">
-        {/* Keep both panes mounted — remounting ProcessTable on expand was a multi-second cost. */}
-        <div className="view-pane" hidden={compact} aria-hidden={compact}>
-          <UpdateBanner
-            status={updater.status}
-            update={updater.update}
-            progress={updater.progress}
-            error={updater.error}
-            onInstall={() => void updater.install()}
-            onDismiss={updater.dismiss}
-            suppressAvailable={updater.promptOpen}
-          />
-
-          <HeaderStats
-            totalCpu={snapshot.totalCpu}
-            usedMemory={snapshot.usedMemory}
-            totalMemory={snapshot.totalMemory}
-            processCount={snapshot.processCount || snapshot.processes.length}
-          />
-
-          <ProcessTabs active={tab} onChange={setTab} />
-
-          {tab === "temp" ? (
-            <TemperaturePanel
-              cpu={temps.cpu}
-              gpu={temps.gpu}
-              gpuUtil={temps.gpuUtil}
-              error={tempError}
-              loading={tempLoading}
-              cpuExtremes={tempStats.cpuExtremes}
-              gpuExtremes={tempStats.gpuExtremes}
-              cpuHistory={tempStats.cpuHistory}
-              gpuHistory={tempStats.gpuHistory}
-              onResetExtremes={tempStats.reset}
+        {!compact ? (
+          <div className="view-pane">
+            <UpdateBanner
+              status={updater.status}
+              update={updater.update}
+              progress={updater.progress}
+              error={updater.error}
+              onInstall={() => void updater.install()}
+              onDismiss={updater.dismiss}
+              suppressAvailable={updater.promptOpen}
             />
-          ) : (
-            <>
+
+            <HeaderStats
+              totalCpu={snapshot.totalCpu}
+              usedMemory={snapshot.usedMemory}
+              totalMemory={snapshot.totalMemory}
+              processCount={snapshot.processCount || snapshot.processes.length}
+            />
+
+            <ProcessTabs active={tab} onChange={setTab} />
+
+            {/* Keep process + temp mounted so scroll/expand survive tab switches. */}
+            <div
+              className="tab-pane"
+              hidden={tab === "temp"}
+              aria-hidden={tab === "temp"}
+            >
               {error && (
                 <div className="banner-error" role="alert">
                   {error}
@@ -478,28 +486,48 @@ function AppInner() {
                   filter={processFilter}
                   onFilterChange={setProcessFilter}
                   onKill={kill}
+                  requestCommandLines={requestCommandLines}
                 />
               )}
-            </>
-          )}
+            </div>
 
-          <AppFooter
-            updateStatus={updater.status}
-            updateMessage={updater.message}
-            onCheckUpdate={() => void updater.checkNow()}
-          />
-        </div>
+            <div
+              className="tab-pane"
+              hidden={tab !== "temp"}
+              aria-hidden={tab !== "temp"}
+            >
+              <TemperaturePanel
+                cpu={temps.cpu}
+                gpu={temps.gpu}
+                gpuUtil={temps.gpuUtil}
+                error={tempError}
+                loading={tempLoading}
+                cpuExtremes={tempStats.cpuExtremes}
+                gpuExtremes={tempStats.gpuExtremes}
+                cpuHistory={tempStats.cpuHistory}
+                gpuHistory={tempStats.gpuHistory}
+                onResetExtremes={tempStats.reset}
+              />
+            </div>
 
-        <div className="view-pane" hidden={!compact} aria-hidden={!compact}>
-          <MiniHud
-            totalCpu={snapshot.totalCpu}
-            usedMemory={snapshot.usedMemory}
-            totalMemory={snapshot.totalMemory}
-            cpuTemp={temps.cpu}
-            gpuTemp={temps.gpu}
-            gpuUtil={temps.gpuUtil}
-          />
-        </div>
+            <AppFooter
+              updateStatus={updater.status}
+              updateMessage={updater.message}
+              onCheckUpdate={() => void updater.checkNow()}
+            />
+          </div>
+        ) : (
+          <div className="view-pane">
+            <MiniHud
+              totalCpu={snapshot.totalCpu}
+              usedMemory={snapshot.usedMemory}
+              totalMemory={snapshot.totalMemory}
+              cpuTemp={temps.cpu}
+              gpuTemp={temps.gpu}
+              gpuUtil={temps.gpuUtil}
+            />
+          </div>
+        )}
       </div>
 
       {updater.promptOpen && updater.update && (
