@@ -1,11 +1,11 @@
 {
-    "version":  "0.5.0",
-    "notes":  "## CPU-ZE v0.5.0\n\n- Process tree / identical grouping (parent PID, cmdline, find/kill parent)\n- Slim IPC + virtualized table + fluidity pass (less WebView2 churn)",
-    "pub_date":  "2026-08-03T16:52:21Z",
+    "version":  "0.8.0",
+    "notes":  "## CPU-ZE v0.8.0\r\n\r\nMini Task Manager — table process “power user” + robustesse post-veille.\r\n\r\n### Highlights\r\n- **Menu** : Vérifier les mises à jour + Quitter ; X quitte vraiment (minimize → tray)\r\n- **Post-veille** : polls sérialisés, reset NVML/PWS, tray recréé, single-instance\r\n- **Table** : colonnes resize / hide / reorder, multi-sélection, Del + Terminer\r\n- **Actions** : copier PID/path/cmdline, ouvrir l’emplacement, priorité, suspend/resume, affinité\r\n- **Visuel** : icônes process, sparklines CPU/RAM\r\n- **Métriques** : colonne Disque (IO) ; Réseau/GPU présents (MVP / souvent vides)\r\n\r\n### Install\r\nInstaller NSIS recommandé : `CPU-ZE_0.8.0_x64-setup.exe`",
+    "pub_date":  "2026-08-05T14:47:20Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWZVYks0bzZGSUV0Vy9YUmtHVUZ5K0V2L2E3UzBaR3VMRzZEVFhhR2NjdndvNjdkZWRBZU9oa2ZTSkF0WjdHOE5XZEZOSjBUbzhPRGJwZUFseUk0SVEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1Nzc1OTAzCWZpbGU6Q1BVLVpFXzAuNS4wX3g2NC1zZXR1cC5leGUKUXBrRGp2MExDOTJ5RHdwVkpqeUh3UmxwSklGeUpzUEg2L3c1NFhIWElIY1YxcS9FSXdRYUlwRndTMkRhVy9DazZJR1JlL2JnM3NRcldwNW1pcVhJQlE9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.5.0/CPU-ZE_0.5.0_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWQ3aWFqY0p1SG4vNnNHY0U0cmN6MWwxZE9iYVpuNE1QUktuUFpQc3IxVXVPdlNPR2ZlZjF0VGtnVUdFbExMck5iK1JtYVdXWEpQNW5IWnVJbjBCS2drPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1OTQxMTYyCWZpbGU6Q1BVLVpFXzAuOC4wX3g2NC1zZXR1cC5leGUKaGw4bUJMV0IwYjFuRlJObnozdllUL3pBV091T3VYMWQ3Q0RCRk0zSko4RWFIL0JLQWQ2dUkzV3JTN0wrOUhpUEJ3NWlZak52emFBZmVKWk81aVYxQVE9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.8.0/CPU-ZE_0.8.0_x64-setup.exe"
                                          }
                   }
 }
