@@ -146,8 +146,8 @@ export function useProcesses(
         // Light path after sleep: totals/count only until resume window ends.
         detail: detailRef.current && !justResumedRef.current,
         enrichPws: enrich,
-        // Same cadence as PWS — top-N disk IO deltas.
-        enrichIo: enrich && !justResumedRef.current,
+        // Disk IO every detail tick (not tied to PWS half-cadence — that made MB/s blink).
+        enrichIo: detailRef.current && !justResumedRef.current,
         includeCmd: false,
       });
       if (!alive.current) return;

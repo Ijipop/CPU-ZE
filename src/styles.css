@@ -219,21 +219,19 @@ html.app-paused .bg-glow {
   flex: 1;
   justify-content: flex-end;
   flex-wrap: wrap;
-  min-width: 280px;
+  min-width: 0;
 }
 
 .metric {
-  min-width: 160px;
+  min-width: 120px;
   flex: 1;
   max-width: 240px;
 }
 
 .metric-count {
-  max-width: 110px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 4px;
+  max-width: 120px;
+  flex: 0 1 120px;
+  align-self: flex-start;
 }
 
 .metric-top {
@@ -480,6 +478,10 @@ html.app-paused .bg-glow {
   text-transform: uppercase;
   color: var(--text-dim);
   border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .th-sort {
@@ -504,6 +506,8 @@ html.app-paused .bg-glow {
   padding: 9px 14px;
   border-bottom: 1px solid rgba(120, 160, 180, 0.07);
   vertical-align: middle;
+  overflow: hidden;
+  max-width: 0; /* forces fixed-layout cells to honor col widths + ellipsis */
 }
 
 .process-table tbody tr {
@@ -535,11 +539,6 @@ html.app-paused .bg-glow {
 
 .row-busy {
   opacity: 0.55;
-}
-
-.col-parent {
-  color: var(--text-dim);
-  font-size: 0.85rem;
 }
 
 .col-rate {
@@ -699,6 +698,12 @@ html.app-paused .bg-glow {
   align-items: flex-start;
   gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.col-name {
+  overflow: hidden;
 }
 
 .tree-toggle {
@@ -759,6 +764,17 @@ html.app-paused .bg-glow {
 .col-pid {
   color: var(--text-dim);
   font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-parent {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cell-meter {
@@ -1226,11 +1242,18 @@ html.app-paused .bg-glow {
   .metrics {
     justify-content: stretch;
     width: 100%;
+    min-width: 0;
   }
 
   .metric,
   .metric-count {
     max-width: none;
+    min-width: 0;
+  }
+
+  .titlebar-sub,
+  .titlebar-version {
+    display: none;
   }
 
   .footer {
@@ -1253,23 +1276,13 @@ html.app-paused .bg-glow {
     display: none;
   }
 
-  .tab {
-    padding: 7px 12px;
-    font-size: 0.78rem;
-  }
-
-  .col-pid,
-  .col-parent {
+  .metric-spark {
     display: none;
   }
 
-  .process-table .col-name {
-    width: 42%;
-  }
-
-  .process-table .col-cpu,
-  .process-table .col-ram {
-    width: 29%;
+  .tab {
+    padding: 7px 12px;
+    font-size: 0.78rem;
   }
 
   .view-seg-btn {
@@ -1282,13 +1295,48 @@ html.app-paused .bg-glow {
     padding: 6px 8px;
   }
 
-  .cell-num-ram {
-    min-width: 5.5rem;
+  .search {
+    flex: 1 1 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .table-toolbar {
+    gap: 8px;
   }
 
   .ram-pct {
     display: none;
   }
+}
+
+/* Narrow process table (shell width via JS class) */
+.table-shell.is-cramped .cell-bar {
+  display: none;
+}
+
+.table-shell.is-cramped .cell-meter {
+  grid-template-columns: 1fr;
+}
+
+.table-shell.is-cramped .cell-num,
+.table-shell.is-cramped .cell-num-ram {
+  min-width: 0;
+  text-align: right;
+}
+
+.table-shell.is-narrow .tb-find-parent {
+  display: none;
+}
+
+.table-shell.is-narrow .process-table th,
+.table-shell.is-narrow .process-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.table-shell.is-narrow .proc-sub {
+  display: none;
 }
 
 @media (max-width: 480px) {
@@ -1298,6 +1346,16 @@ html.app-paused .bg-glow {
 
   .search {
     max-width: none;
+  }
+
+  .tb-btn {
+    width: 40px;
+  }
+
+  .tb-menu-btn {
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 0.72rem;
   }
 
   .temp-toolbar {
@@ -2078,6 +2136,8 @@ html.app-paused .bg-glow {
   font-weight: 800;
   font-size: 0.92rem;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: linear-gradient(120deg, #f4fbfa, var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
@@ -2092,6 +2152,8 @@ html.app-paused .bg-glow {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .titlebar-controls {
@@ -2537,6 +2599,8 @@ html.app-paused .bg-glow {
   color: var(--text-mute);
   font-size: 0.68rem;
   opacity: 0.9;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tb-about {

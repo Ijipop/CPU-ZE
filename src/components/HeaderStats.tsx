@@ -105,8 +105,10 @@ export const HeaderStats = memo(function HeaderStats({
         </div>
 
         <div className="metric metric-count">
-          <span className="metric-label">{t("metrics.processes")}</span>
-          <span className="metric-value mono">{processCount}</span>
+          <div className="metric-top">
+            <span className="metric-label">{t("metrics.processes")}</span>
+            <span className="metric-value mono">{processCount}</span>
+          </div>
         </div>
       </div>
     </header>

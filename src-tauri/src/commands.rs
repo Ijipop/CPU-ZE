@@ -92,9 +92,18 @@ const PWS_MAX_QUERIES_PER_TICK: usize = 12;
 const PWS_CACHE_TTL: Duration = Duration::from_secs(4);
 const CMD_LINES_MAX_PIDS: usize = 40;
 /// Cap hottest processes we sample for IO delta per tick.
-const IO_ENRICH_MAX: usize = 24;
+const IO_ENRICH_MAX: usize = 32;
+/// Keep last computed disk rate visible briefly when a PID isn't re-sampled.
+const IO_RATE_HOLD: Duration = Duration::from_secs(2);
 /// Cap on the number of paths we resolve icons for per call.
 const ICONS_MAX_PATHS: usize = 40;
+
+struct IoSample {
+    sampled_at: Instant,
+    total_bytes: u64,
+    rate_at: Instant,
+    rate_bps: u64,
+}
 
 struct PwsCache {
     map: HashMap<u32, (Instant, u64)>,
@@ -114,9 +123,9 @@ fn pws_cache() -> &'static Mutex<PwsCache> {
     CACHE.get_or_init(|| Mutex::new(PwsCache::new()))
 }
 
-fn io_cache() -> &'static Mutex<HashMap<u32, (Instant, u64)>> {
+fn io_cache() -> &'static Mutex<HashMap<u32, IoSample>> {
     use std::sync::OnceLock;
-    static CACHE: OnceLock<Mutex<HashMap<u32, (Instant, u64)>>> = OnceLock::new();
+    static CACHE: OnceLock<Mutex<HashMap<u32, IoSample>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -322,18 +331,36 @@ fn enrich_private_working_set(processes: &mut [ProcessInfo]) {
 }
 
 /// Sample IO for the hottest processes and compute bytes/sec deltas since last call.
+/// Last rates are held briefly so the Disque column doesn't blink to "—" between samples.
 fn enrich_process_io(processes: &mut [ProcessInfo]) {
     if processes.is_empty() {
         return;
     }
 
     let mut idxs: Vec<usize> = (0..processes.len()).collect();
+    // Prefer currently active disk writers, then CPU / working set.
+    let active: HashMap<u32, u64> = {
+        io_cache()
+            .lock()
+            .map(|c| {
+                c.iter()
+                    .filter(|(_, s)| s.rate_bps > 0)
+                    .map(|(&pid, s)| (pid, s.rate_bps))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
     idxs.sort_by(|&a, &b| {
         let pa = &processes[a];
         let pb = &processes[b];
-        pb.cpu
-            .partial_cmp(&pa.cpu)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        let ra = active.get(&pa.pid).copied().unwrap_or(0);
+        let rb = active.get(&pb.pid).copied().unwrap_or(0);
+        rb.cmp(&ra)
+            .then_with(|| {
+                pb.cpu
+                    .partial_cmp(&pa.cpu)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .then_with(|| pb.working_set_bytes.cmp(&pa.working_set_bytes))
     });
     idxs.truncate(IO_ENRICH_MAX);
@@ -348,15 +375,43 @@ fn enrich_process_io(processes: &mut [ProcessInfo]) {
         let Some(total) = win_metrics::process_disk_bytes(pid) else {
             continue;
         };
-        if let Some((t_prev, bytes_prev)) = cache.get(&pid).copied() {
-            let dt = now.duration_since(t_prev).as_secs_f64();
+        let prev = cache.get(&pid);
+        let mut rate = prev.map(|s| s.rate_bps).unwrap_or(0);
+        let mut rate_at = prev.map(|s| s.rate_at).unwrap_or(now);
+        if let Some(sample) = prev {
+            let dt = now.duration_since(sample.sampled_at).as_secs_f64();
             if dt > 0.05 {
-                let dbytes = total.saturating_sub(bytes_prev);
-                let rate = (dbytes as f64 / dt).round() as u64;
-                processes[idx].disk_bytes_per_sec = rate;
+                let dbytes = total.saturating_sub(sample.total_bytes);
+                let measured = (dbytes as f64 / dt).round() as u64;
+                if measured > 0 {
+                    rate = measured;
+                    rate_at = now;
+                } else if now.duration_since(sample.rate_at) >= IO_RATE_HOLD {
+                    // Truly idle long enough — clear.
+                    rate = 0;
+                    rate_at = now;
+                }
+                // else keep previous non-zero rate briefly (bursty IO).
             }
         }
-        cache.insert(pid, (now, total));
+        cache.insert(
+            pid,
+            IoSample {
+                sampled_at: now,
+                total_bytes: total,
+                rate_at,
+                rate_bps: rate,
+            },
+        );
+    }
+
+    // Paint held rates onto the full list (not only the sampled top-N).
+    for proc in processes.iter_mut() {
+        if let Some(sample) = cache.get(&proc.pid) {
+            if now.duration_since(sample.rate_at) <= IO_RATE_HOLD {
+                proc.disk_bytes_per_sec = sample.rate_bps;
+            }
+        }
     }
 
     let live: std::collections::HashSet<u32> = processes.iter().map(|p| p.pid).collect();

@@ -134,8 +134,44 @@ export function ProcessTable({
     () => defaultSortForTab(tab).dir,
   );
 
-  const columns = useMemo(() => visibleColumns(colPrefs), [colPrefs]);
+  const [shellW, setShellW] = useState(800);
+  const narrow = shellW < 560;
+  const cramped = shellW < 720;
+
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w != null && Number.isFinite(w)) setShellW(w);
+    });
+    ro.observe(el);
+    setShellW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const columns = useMemo(() => {
+    let cols = visibleColumns(colPrefs);
+    // Narrow window: drop PID/Parent so Name+metrics stay readable (still in column menu).
+    if (narrow) {
+      cols = cols.filter((c) => c.id !== "pid" && c.id !== "parent");
+    }
+    return cols;
+  }, [colPrefs, narrow]);
   const colCount = columns.length;
+  const nameColWidth = narrow ? 160 : cramped ? 180 : 220;
+  const tableMinWidth = useMemo(
+    () =>
+      columns.reduce((sum, c) => {
+        if (c.id === "name") return sum + nameColWidth;
+        const w = columnWidth(colPrefs, c.id);
+        if (cramped && (c.id === "cpu" || c.id === "ram")) {
+          return sum + Math.min(w, c.id === "cpu" ? 64 : 72);
+        }
+        return sum + Math.max(w, c.minWidth);
+      }, 0),
+    [columns, colPrefs, cramped, nameColWidth],
+  );
 
   const byPid = useMemo(() => {
     const m = new Map<number, ProcessInfo>();
@@ -231,9 +267,16 @@ export function ProcessTable({
   );
   rowsRef.current = rows;
 
+  // Narrow UI hides cmdline sub-lines — use flat row heights for scroll math.
   const virt = useMemo(
-    () => computeVirtWindow(rows, viewMode, scrollTop, viewportH),
-    [rows, viewMode, scrollTop, viewportH],
+    () =>
+      computeVirtWindow(
+        rows,
+        narrow ? "flat" : viewMode,
+        scrollTop,
+        viewportH,
+      ),
+    [rows, viewMode, narrow, scrollTop, viewportH],
   );
   offsetsRef.current = virt.offsets;
 
@@ -667,8 +710,18 @@ export function ProcessTable({
   );
 
   const colStyle = (id: ColumnId): CSSProperties => {
-    if (id === "name") return { width: "auto" };
-    return { width: columnWidth(colPrefs, id), minWidth: COLUMN_BY_ID[id].minWidth };
+    const def = COLUMN_BY_ID[id];
+    if (id === "name") {
+      // Concrete width — `auto` under table-layout:fixed collapses to 0 and
+      // name/icons overflow into the PID column.
+      return { width: nameColWidth, minWidth: nameColWidth };
+    }
+    let w = columnWidth(colPrefs, id);
+    if (cramped && (id === "cpu" || id === "ram")) {
+      w = Math.min(w, id === "cpu" ? 64 : 72);
+    }
+    w = Math.max(w, def.minWidth);
+    return { width: w, minWidth: def.minWidth };
   };
 
   const pendingPlan = pendingKill?.plan ?? null;
@@ -676,7 +729,7 @@ export function ProcessTable({
 
   return (
     <div
-      className={`table-shell ${frozen ? "is-frozen" : ""}`}
+      className={`table-shell ${frozen ? "is-frozen" : ""} ${narrow ? "is-narrow" : ""} ${cramped ? "is-cramped" : ""}`}
       ref={shellRef}
       tabIndex={0}
     >
@@ -752,7 +805,7 @@ export function ProcessTable({
       )}
 
       <div className="table-scroll" ref={scrollRef}>
-        <table className="process-table">
+        <table className="process-table" style={{ minWidth: tableMinWidth }}>
           <colgroup>
             {columns.map((c) => (
               <col key={c.id} style={colStyle(c.id)} />
