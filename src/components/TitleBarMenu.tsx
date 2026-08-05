@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { disable as disablePluginAutostart } from "@tauri-apps/plugin-autostart";
+import { exit } from "@tauri-apps/plugin-process";
 import { LanguageToggle } from "./LanguageToggle";
+import { UpdateCheckButton } from "./UpdateCheckButton";
 import { useToast } from "./Toast";
 import { useLocale } from "../i18n/LocaleContext";
 import { localizeBackendError } from "../i18n";
+import type { UpdateStatus } from "../hooks/useUpdater";
 
 interface TitleBarMenuProps {
   onOpenHelp: () => void;
@@ -13,6 +16,9 @@ interface TitleBarMenuProps {
   onToggleMinimizeToTray: (next: boolean) => void;
   startCompact: boolean;
   onToggleStartCompact: (next: boolean) => void;
+  updateStatus: UpdateStatus;
+  updateMessage: string | null;
+  onCheckUpdate: () => void;
 }
 
 export function TitleBarMenu({
@@ -22,6 +28,9 @@ export function TitleBarMenu({
   onToggleMinimizeToTray,
   startCompact,
   onToggleStartCompact,
+  updateStatus,
+  updateMessage,
+  onCheckUpdate,
 }: TitleBarMenuProps) {
   const { locale, t } = useLocale();
   const toast = useToast();
@@ -141,6 +150,21 @@ export function TitleBarMenu({
             <span>{t("tray.minimizeToTray")}</span>
           </label>
           <div className="tb-menu-sep" role="separator" />
+          <div className="tb-menu-update" role="none">
+            <UpdateCheckButton
+              status={updateStatus}
+              message={updateMessage}
+              onCheck={() => {
+                onCheckUpdate();
+              }}
+            />
+            {updateMessage && (
+              <span className="tb-menu-update-msg mono" title={updateMessage}>
+                {updateMessage}
+              </span>
+            )}
+          </div>
+          <div className="tb-menu-sep" role="separator" />
           <button
             type="button"
             className="tb-menu-item"
@@ -168,6 +192,20 @@ export function TitleBarMenu({
               i
             </span>
             <span>{t("title.about")}</span>
+          </button>
+          <button
+            type="button"
+            className="tb-menu-item tb-menu-item-danger"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              void exit(0);
+            }}
+          >
+            <span className="tb-menu-glyph" aria-hidden>
+              ×
+            </span>
+            <span>{t("title.quit")}</span>
           </button>
         </div>
       )}

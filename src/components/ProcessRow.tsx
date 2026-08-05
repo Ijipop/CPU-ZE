@@ -2,20 +2,24 @@ import { memo, type MouseEvent } from "react";
 import type { ProcessInfo } from "../types";
 import type { DisplayRow } from "../processTree";
 import { formatRamMbLocalized, type Locale } from "../i18n";
+import { formatBytesPerSec } from "../formatRate";
+import type { ColumnDef, ColumnId } from "../tableColumns";
 
 export interface ProcessRowProps {
   row: DisplayRow;
+  columns: ColumnDef[];
   totalMemory: number;
   locale: Locale;
   viewMode: "flat" | "tree" | "group";
   busy: boolean;
   selected: boolean;
   flash: boolean;
+  iconUrl: string | null;
   noParentLabel: string;
   timesLabel: (count: number) => string;
   ramOfTotalTitle: (pct: string) => string;
   aggHint: string;
-  onSelect: (pid: number) => void;
+  onSelect: (pid: number, e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent, process: ProcessInfo) => void;
   onToggleExpand: (key: string) => void;
 }
@@ -32,24 +36,38 @@ function truncate(s: string, max: number): string {
   return `${s.slice(0, max - 1)}…`;
 }
 
-function ProcessRowInner({
-  row,
-  totalMemory,
-  locale,
-  viewMode,
-  busy,
-  selected,
-  flash,
-  noParentLabel,
-  timesLabel,
-  ramOfTotalTitle,
-  aggHint,
-  onSelect,
-  onContextMenu,
-  onToggleExpand,
-}: ProcessRowProps) {
-  const isGroup = row.kind === "group";
-  const p = row.process;
+function cellFor(
+  col: ColumnDef,
+  row: DisplayRow,
+  opts: {
+    isGroup: boolean;
+    p: ProcessInfo;
+    totalMemory: number;
+    locale: Locale;
+    viewMode: "flat" | "tree" | "group";
+    noParentLabel: string;
+    timesLabel: (count: number) => string;
+    ramOfTotalTitle: (pct: string) => string;
+    aggHint: string;
+    iconUrl: string | null;
+    showSub: boolean;
+    onToggleExpand: (key: string) => void;
+  },
+) {
+  const {
+    isGroup,
+    p,
+    totalMemory,
+    locale,
+    viewMode,
+    noParentLabel,
+    timesLabel,
+    ramOfTotalTitle,
+    aggHint,
+    iconUrl,
+    showSub,
+    onToggleExpand,
+  } = opts;
   const displayMemMb = row.displayMemoryBytes / (1024 * 1024);
   const ramPct =
     totalMemory > 0
@@ -61,6 +79,150 @@ function ProcessRowInner({
     : p.parentPid != null
       ? String(p.parentPid)
       : noParentLabel;
+
+  switch (col.id as ColumnId) {
+    case "name":
+      return (
+        <td key={col.id} className="col-name">
+          <div
+            className="proc-cell"
+            style={{ paddingLeft: `${row.depth * 14}px` }}
+          >
+            {row.hasChildren ? (
+              <button
+                type="button"
+                className={`tree-toggle ${row.expanded ? "is-open" : ""}`}
+                aria-expanded={row.expanded}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand(row.key);
+                }}
+              >
+                ▸
+              </button>
+            ) : (
+              <span className="tree-spacer" aria-hidden />
+            )}
+            {iconUrl ? (
+              <img className="proc-icon" src={iconUrl} alt="" width={16} height={16} />
+            ) : (
+              <span className="proc-icon-ph" aria-hidden />
+            )}
+            <div className="proc-text">
+              <span className="proc-name">
+                {row.kind === "group" ? row.name : p.name}
+                {row.childCount > 1 && (
+                  <span className="proc-times mono">
+                    {" "}
+                    {timesLabel(row.childCount)}
+                  </span>
+                )}
+              </span>
+              {showSub && (
+                <span className="proc-sub mono">
+                  {truncate(p.commandLine || p.path || "", 96)}
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+    case "pid":
+      return (
+        <td key={col.id} className="col-pid mono">
+          {isGroup ? noParentLabel : p.pid}
+        </td>
+      );
+    case "parent":
+      return (
+        <td key={col.id} className="col-parent mono">
+          {parentLabel}
+        </td>
+      );
+    case "cpu":
+      return (
+        <td key={col.id} className="col-cpu">
+          <div
+            className="cell-meter"
+            title={
+              !row.expanded && row.hasChildren && viewMode === "tree"
+                ? aggHint
+                : undefined
+            }
+          >
+            <div className="cell-bar" aria-hidden>
+              <div
+                className="cell-bar-fill meter-cpu"
+                style={{ width: `${cpuPct}%` }}
+              />
+            </div>
+            <span className="mono cell-num">{row.displayCpu.toFixed(1)}%</span>
+          </div>
+        </td>
+      );
+    case "ram":
+      return (
+        <td key={col.id} className="col-ram">
+          <div className="cell-meter">
+            <div className="cell-bar" aria-hidden>
+              <div
+                className="cell-bar-fill meter-ram"
+                style={{ width: `${Math.max(ramPct, 0.5)}%` }}
+              />
+            </div>
+            <span
+              className="mono cell-num cell-num-ram"
+              title={ramOfTotalTitle(ramPct.toFixed(2))}
+            >
+              {formatRamMbLocalized(locale, displayMemMb)}
+              <span className="ram-pct"> {ramPct.toFixed(1)}%</span>
+            </span>
+          </div>
+        </td>
+      );
+    case "disk":
+      return (
+        <td key={col.id} className="col-rate mono">
+          {isGroup ? "—" : formatBytesPerSec(p.diskBytesPerSec ?? 0)}
+        </td>
+      );
+    case "net":
+      return (
+        <td key={col.id} className="col-rate mono">
+          {isGroup ? "—" : formatBytesPerSec(p.netBytesPerSec ?? 0)}
+        </td>
+      );
+    case "gpu":
+      return (
+        <td key={col.id} className="col-rate mono">
+          {isGroup || p.gpuUtil == null ? "—" : `${p.gpuUtil.toFixed(0)}%`}
+        </td>
+      );
+    default:
+      return <td key={col.id} />;
+  }
+}
+
+function ProcessRowInner({
+  row,
+  columns,
+  totalMemory,
+  locale,
+  viewMode,
+  busy,
+  selected,
+  flash,
+  iconUrl,
+  noParentLabel,
+  timesLabel,
+  ramOfTotalTitle,
+  aggHint,
+  onSelect,
+  onContextMenu,
+  onToggleExpand,
+}: ProcessRowProps) {
+  const isGroup = row.kind === "group";
+  const p = row.process;
   const tip = isGroup ? (row.path ?? undefined) : rowTooltip(p) || undefined;
   const showSub =
     !isGroup &&
@@ -71,12 +233,16 @@ function ProcessRowInner({
   return (
     <tr
       data-pid={isGroup ? undefined : p.pid}
-      className={[busy ? "row-busy" : "", selected ? "is-selected" : "", flash ? "is-flash" : ""]
+      className={[
+        busy ? "row-busy" : "",
+        selected ? "is-selected" : "",
+        flash ? "is-flash" : "",
+      ]
         .filter(Boolean)
         .join(" ")}
       title={tip}
-      onClick={() => {
-        if (!isGroup) onSelect(p.pid);
+      onClick={(e) => {
+        if (!isGroup) onSelect(p.pid, e);
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -84,75 +250,22 @@ function ProcessRowInner({
         onContextMenu(e, p);
       }}
     >
-      <td className="col-name">
-        <div className="proc-cell" style={{ paddingLeft: `${row.depth * 14}px` }}>
-          {row.hasChildren ? (
-            <button
-              type="button"
-              className={`tree-toggle ${row.expanded ? "is-open" : ""}`}
-              aria-expanded={row.expanded}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleExpand(row.key);
-              }}
-            >
-              ▸
-            </button>
-          ) : (
-            <span className="tree-spacer" aria-hidden />
-          )}
-          <div className="proc-text">
-            <span className="proc-name">
-              {isGroup ? row.name : p.name}
-              {row.childCount > 1 && (
-                <span className="proc-times mono"> {timesLabel(row.childCount)}</span>
-              )}
-            </span>
-            {showSub && (
-              <span className="proc-sub mono">
-                {truncate(p.commandLine || p.path || "", 96)}
-              </span>
-            )}
-          </div>
-        </div>
-      </td>
-      <td className="col-pid mono">{isGroup ? noParentLabel : p.pid}</td>
-      <td className="col-parent mono">{parentLabel}</td>
-      <td className="col-cpu">
-        <div
-          className="cell-meter"
-          title={
-            !row.expanded && row.hasChildren && viewMode === "tree"
-              ? aggHint
-              : undefined
-          }
-        >
-          <div className="cell-bar" aria-hidden>
-            <div
-              className="cell-bar-fill meter-cpu"
-              style={{ width: `${cpuPct}%` }}
-            />
-          </div>
-          <span className="mono cell-num">{row.displayCpu.toFixed(1)}%</span>
-        </div>
-      </td>
-      <td className="col-ram">
-        <div className="cell-meter">
-          <div className="cell-bar" aria-hidden>
-            <div
-              className="cell-bar-fill meter-ram"
-              style={{ width: `${Math.max(ramPct, 0.5)}%` }}
-            />
-          </div>
-          <span
-            className="mono cell-num cell-num-ram"
-            title={ramOfTotalTitle(ramPct.toFixed(2))}
-          >
-            {formatRamMbLocalized(locale, displayMemMb)}
-            <span className="ram-pct"> {ramPct.toFixed(1)}%</span>
-          </span>
-        </div>
-      </td>
+      {columns.map((col) =>
+        cellFor(col, row, {
+          isGroup,
+          p,
+          totalMemory,
+          locale,
+          viewMode,
+          noParentLabel,
+          timesLabel,
+          ramOfTotalTitle,
+          aggHint,
+          iconUrl: isGroup ? null : iconUrl,
+          showSub,
+          onToggleExpand,
+        }),
+      )}
     </tr>
   );
 }
@@ -164,8 +277,15 @@ function rowEqual(a: ProcessRowProps, b: ProcessRowProps): boolean {
   if (a.busy !== b.busy) return false;
   if (a.selected !== b.selected) return false;
   if (a.flash !== b.flash) return false;
+  if (a.iconUrl !== b.iconUrl) return false;
   if (a.noParentLabel !== b.noParentLabel) return false;
   if (a.aggHint !== b.aggHint) return false;
+  if (a.columns !== b.columns) {
+    if (a.columns.length !== b.columns.length) return false;
+    for (let i = 0; i < a.columns.length; i++) {
+      if (a.columns[i].id !== b.columns[i].id) return false;
+    }
+  }
   const ra = a.row;
   const rb = b.row;
   if (ra.key !== rb.key) return false;
@@ -188,7 +308,10 @@ function rowEqual(a: ProcessRowProps, b: ProcessRowProps): boolean {
     pa.path === pb.path &&
     pa.commandLine === pb.commandLine &&
     pa.cpu === pb.cpu &&
-    pa.memoryBytes === pb.memoryBytes
+    pa.memoryBytes === pb.memoryBytes &&
+    (pa.diskBytesPerSec ?? 0) === (pb.diskBytesPerSec ?? 0) &&
+    (pa.netBytesPerSec ?? 0) === (pb.netBytesPerSec ?? 0) &&
+    (pa.gpuUtil ?? null) === (pb.gpuUtil ?? null)
   );
 }
 

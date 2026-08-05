@@ -11,6 +11,12 @@ export interface ProcessInfo {
   path: string | null;
   parentPid: number | null;
   commandLine: string | null;
+  /** Disk read+write bytes/sec (IO_COUNTERS delta). */
+  diskBytesPerSec?: number;
+  /** Network bytes/sec (MVP; may be 0). */
+  netBytesPerSec?: number;
+  /** Per-process GPU util % when available. */
+  gpuUtil?: number | null;
 }
 
 export type ProcessViewMode = "flat" | "tree" | "group";

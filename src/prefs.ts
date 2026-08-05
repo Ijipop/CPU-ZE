@@ -1,10 +1,15 @@
 import type { ProcessViewMode } from "./types";
+import {
+  normalizeColumnPrefs,
+  type ColumnPrefs,
+} from "./tableColumns";
 
 const START_COMPACT_KEY = "cpuze.startCompact";
 const GEOM_NORMAL_KEY = "cpuze.geom.normal";
 const GEOM_COMPACT_KEY = "cpuze.geom.compact";
 const MINIMIZE_TO_TRAY_KEY = "cpuze.minimizeToTray";
 const PROCESS_VIEW_KEY = "cpuze.processView";
+const COLUMN_PREFS_KEY = "cpuze.tableColumns";
 
 export interface PhysicalGeom {
   x: number;
@@ -105,4 +110,12 @@ export function saveProcessView(mode: ProcessViewMode) {
   } catch {
     /* ignore */
   }
+}
+
+export function loadColumnPrefs(): ColumnPrefs {
+  return normalizeColumnPrefs(readJson<ColumnPrefs>(COLUMN_PREFS_KEY));
+}
+
+export function saveColumnPrefs(prefs: ColumnPrefs) {
+  writeJson(COLUMN_PREFS_KEY, prefs);
 }

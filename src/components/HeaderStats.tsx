@@ -1,12 +1,15 @@
 import { memo, useState } from "react";
 import { useLocale } from "../i18n/LocaleContext";
 import { formatBytesLocalized } from "../i18n";
+import { MetricSparkline } from "./MetricSparkline";
 
 interface HeaderStatsProps {
   totalCpu: number;
   usedMemory: number;
   totalMemory: number;
   processCount: number;
+  cpuHistory?: number[];
+  ramHistory?: number[];
 }
 
 type RamMode = "bytes" | "pct";
@@ -28,6 +31,8 @@ export const HeaderStats = memo(function HeaderStats({
   usedMemory,
   totalMemory,
   processCount,
+  cpuHistory = [],
+  ramHistory = [],
 }: HeaderStatsProps) {
   const { locale, t } = useLocale();
   const [ramMode, setRamMode] = useState<RamMode>(loadRamMode);
@@ -61,6 +66,11 @@ export const HeaderStats = memo(function HeaderStats({
               style={{ width: `${cpuPct}%` }}
             />
           </div>
+          <MetricSparkline
+            className="metric-spark spark-cpu"
+            values={cpuHistory}
+            ariaLabel={t("metrics.sparkCpu")}
+          />
         </div>
 
         <div className="metric">
@@ -87,6 +97,11 @@ export const HeaderStats = memo(function HeaderStats({
               style={{ width: `${ramPct}%` }}
             />
           </div>
+          <MetricSparkline
+            className="metric-spark spark-ram"
+            values={ramHistory}
+            ariaLabel={t("metrics.sparkRam")}
+          />
         </div>
 
         <div className="metric metric-count">

@@ -471,6 +471,7 @@ html.app-paused .bg-glow {
 }
 
 .process-table th {
+  position: relative;
   text-align: left;
   padding: 11px 14px;
   font-size: 0.7rem;
@@ -536,23 +537,155 @@ html.app-paused .bg-glow {
   opacity: 0.55;
 }
 
-.col-name {
-  width: 34%;
-}
-
-.col-pid {
-  width: 9%;
-}
-
 .col-parent {
-  width: 9%;
   color: var(--text-dim);
   font-size: 0.85rem;
 }
 
-.col-cpu,
-.col-ram {
-  width: 24%;
+.col-rate {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.col-resizer:hover {
+  background: rgba(46, 196, 182, 0.35);
+}
+
+.proc-icon,
+.proc-icon-ph {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border-radius: 2px;
+}
+
+.proc-icon-ph {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tb-end-task {
+  appearance: none;
+  border: 1px solid rgba(255, 100, 100, 0.35);
+  background: rgba(255, 80, 80, 0.12);
+  color: #ffb0b0;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.tb-end-task:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.22);
+}
+
+.tb-end-task:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.context-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.context-submenu-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  padding: 6px 12px 2px;
+}
+
+.context-indent {
+  padding-left: 22px !important;
+}
+
+.col-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+.col-menu-check {
+  flex: 1;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.col-menu-move button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.col-menu-move button:hover {
+  color: var(--accent);
+}
+
+.metric-spark {
+  margin-top: 4px;
+  opacity: 0.75;
+}
+
+.spark-cpu {
+  color: var(--accent);
+}
+
+.spark-ram {
+  color: #7eb6ff;
+}
+
+.affinity-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.affinity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.affinity-chip.is-on {
+  border-color: rgba(46, 196, 182, 0.45);
+  color: var(--text);
+  background: rgba(46, 196, 182, 0.1);
+}
+
+.affinity-chip.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .th-label {
@@ -991,6 +1124,32 @@ html.app-paused .bg-glow {
 .tb-menu-item:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
+}
+
+.tb-menu-item-danger:hover {
+  background: rgba(255, 80, 80, 0.12);
+  color: #ff8a8a;
+}
+
+.tb-menu-update {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 2px 2px;
+}
+
+.tb-menu-update .maj-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.tb-menu-update-msg {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  padding: 0 8px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tb-menu-glyph {

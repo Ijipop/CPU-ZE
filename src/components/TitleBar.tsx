@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
+import { exit } from "@tauri-apps/plugin-process";
 import { TitleBarMenu } from "./TitleBarMenu";
 import { hideMainWindowToTray } from "../hooks/useMinimizeToTray";
 import { useLocale } from "../i18n/LocaleContext";
+import type { UpdateStatus } from "../hooks/useUpdater";
 
 interface TitleBarProps {
   compact: boolean;
@@ -15,6 +17,9 @@ interface TitleBarProps {
   onToggleMinimizeToTray: (next: boolean) => void;
   startCompact: boolean;
   onToggleStartCompact: (next: boolean) => void;
+  updateStatus: UpdateStatus;
+  updateMessage: string | null;
+  onCheckUpdate: () => void;
 }
 
 export function TitleBar({
@@ -27,6 +32,9 @@ export function TitleBar({
   onToggleMinimizeToTray,
   startCompact,
   onToggleStartCompact,
+  updateStatus,
+  updateMessage,
+  onCheckUpdate,
 }: TitleBarProps) {
   const win = getCurrentWindow();
   const { t } = useLocale();
@@ -72,6 +80,9 @@ export function TitleBar({
             onToggleMinimizeToTray={onToggleMinimizeToTray}
             startCompact={startCompact}
             onToggleStartCompact={onToggleStartCompact}
+            updateStatus={updateStatus}
+            updateMessage={updateMessage}
+            onCheckUpdate={onCheckUpdate}
           />
         )}
 
@@ -147,9 +158,9 @@ export function TitleBar({
         <button
           type="button"
           className="tb-btn tb-close"
-          title={t("title.close")}
-          aria-label={t("title.close")}
-          onClick={() => void win.close()}
+          title={t("title.quit")}
+          aria-label={t("title.quit")}
+          onClick={() => void exit(0)}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
             <path

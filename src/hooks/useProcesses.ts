@@ -18,6 +18,11 @@ interface ProcessCmdLineDto {
   commandLine: string | null;
 }
 
+interface RefreshOpts {
+  force?: boolean;
+  enrichPws?: boolean;
+}
+
 export interface UseProcessesOptions {
   /** Full process list + Private Working Set. Off = totals/count only. */
   detail?: boolean;
@@ -25,6 +30,8 @@ export interface UseProcessesOptions {
   pauseWhenHidden?: boolean;
   /** Pause polling while the window is morphing (micro ↔ normal). */
   paused?: boolean;
+  /** Skip PWS / prefer light path after sleep-wake. */
+  justResumed?: boolean;
 }
 
 function processesVisuallyEqual(a: ProcessInfo[], b: ProcessInfo[]): boolean {
@@ -39,6 +46,9 @@ function processesVisuallyEqual(a: ProcessInfo[], b: ProcessInfo[]): boolean {
       x.path !== y.path ||
       x.commandLine !== y.commandLine ||
       x.memoryBytes !== y.memoryBytes ||
+      (x.diskBytesPerSec ?? 0) !== (y.diskBytesPerSec ?? 0) ||
+      (x.netBytesPerSec ?? 0) !== (y.netBytesPerSec ?? 0) ||
+      (x.gpuUtil ?? null) !== (y.gpuUtil ?? null) ||
       Math.round(x.cpu * 10) !== Math.round(y.cpu * 10)
     ) {
       return false;
@@ -77,6 +87,7 @@ export function useProcesses(
   const detail = options.detail ?? true;
   const pauseWhenHidden = options.pauseWhenHidden ?? true;
   const paused = options.paused ?? false;
+  const justResumed = options.justResumed ?? false;
   const [snapshot, setSnapshot] = useState<SystemSnapshot>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +95,9 @@ export function useProcesses(
   const alive = useRef(true);
   const frozenRef = useRef(frozen);
   const pausedRef = useRef(paused);
+  const justResumedRef = useRef(justResumed);
   const inFlight = useRef(false);
+  const pendingRefresh = useRef<RefreshOpts | null>(null);
   const detailRef = useRef(detail);
   const skipEnrichOnce = useRef(false);
   const enrichTick = useRef(0);
@@ -93,6 +106,7 @@ export function useProcesses(
   const cmdInFlight = useRef(false);
   frozenRef.current = frozen;
   pausedRef.current = paused;
+  justResumedRef.current = justResumed;
   detailRef.current = detail;
 
   useEffect(() => {
@@ -102,12 +116,21 @@ export function useProcesses(
     wasDetail.current = detail;
   }, [detail]);
 
-  const refresh = useCallback(async (opts?: { force?: boolean; enrichPws?: boolean }) => {
+  const refresh = useCallback(async (opts?: RefreshOpts) => {
     if (frozenRef.current || pausedRef.current) return;
-    if (inFlight.current && !opts?.force) return;
+    // Never overlap invokes — force queues instead of stacking OpenProcess work.
+    if (inFlight.current) {
+      pendingRefresh.current = {
+        force: true,
+        enrichPws: opts?.enrichPws,
+      };
+      return;
+    }
     inFlight.current = true;
     let enrich = false;
-    if (opts?.enrichPws != null) {
+    if (justResumedRef.current) {
+      enrich = false;
+    } else if (opts?.enrichPws != null) {
       enrich = opts.enrichPws;
     } else if (detailRef.current) {
       if (skipEnrichOnce.current) {
@@ -120,8 +143,11 @@ export function useProcesses(
     }
     try {
       const data = await invoke<SystemSnapshot>("list_processes", {
-        detail: detailRef.current,
+        // Light path after sleep: totals/count only until resume window ends.
+        detail: detailRef.current && !justResumedRef.current,
         enrichPws: enrich,
+        // Same cadence as PWS — top-N disk IO deltas.
+        enrichIo: enrich && !justResumedRef.current,
         includeCmd: false,
       });
       if (!alive.current) return;
@@ -179,11 +205,16 @@ export function useProcesses(
     } finally {
       inFlight.current = false;
       if (alive.current) setLoading(false);
+      const pending = pendingRefresh.current;
+      pendingRefresh.current = null;
+      if (pending && alive.current && !frozenRef.current && !pausedRef.current) {
+        void refresh(pending);
+      }
     }
   }, []);
 
   const requestCommandLines = useCallback(async (pids: number[]) => {
-    if (cmdInFlight.current || pids.length === 0) return;
+    if (cmdInFlight.current || pids.length === 0 || justResumedRef.current) return;
     const missing = pids
       .filter((pid) => pid > 0 && !cmdCache.current.has(pid))
       .slice(0, 40);
@@ -233,7 +264,7 @@ export function useProcesses(
         alive.current = false;
       };
     }
-    void refresh({ force: true });
+    void refresh({ force: true, enrichPws: justResumed ? false : undefined });
     const id = window.setInterval(() => {
       if (!frozenRef.current && !pausedRef.current) void refresh();
     }, intervalMs);
@@ -241,13 +272,7 @@ export function useProcesses(
       alive.current = false;
       window.clearInterval(id);
     };
-  }, [refresh, intervalMs, visible, pauseWhenHidden, detail, paused]);
-
-  useEffect(() => {
-    if (!frozen && !paused && (!pauseWhenHidden || visible)) {
-      void refresh({ force: true });
-    }
-  }, [frozen, paused, refresh, pauseWhenHidden, visible]);
+  }, [refresh, intervalMs, visible, pauseWhenHidden, detail, paused, justResumed]);
 
   return { snapshot, error, loading, refresh, kill, requestCommandLines };
 }

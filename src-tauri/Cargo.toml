@@ -1,6 +1,6 @@
 [package]
 name = "cpu-ze"
-version = "0.5.0"
+version = "0.8.0"
 description = "Mini Task Manager — CPU & RAM"
 authors = ["CPU-ZE"]
 edition = "2021"
@@ -21,7 +21,10 @@ tauri-plugin-autostart = "2.5.1"
 nvml-wrapper = "0.12.1"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
+tauri-plugin-single-instance = "2"
 ureq = { version = "3.3.0", default-features = false, features = ["json"] }
+base64 = "0.22"
+png = "0.17"
 windows = { version = "0.62.2", features = [
     "Win32_Foundation",
     "Win32_System_Memory",
@@ -36,5 +39,6 @@ windows = { version = "0.62.2", features = [
     "Win32_Storage_FileSystem",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
 ] }
 

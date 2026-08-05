@@ -11,6 +11,7 @@ const TRAY_ID = "cpu-ze-tray";
 
 interface UseTrayOptions {
   enabled: boolean;
+  onError?: (message: string) => void;
 }
 
 async function applySkipTaskbar(skip: boolean) {
@@ -44,46 +45,111 @@ export async function hideMainWindowToTray() {
 }
 
 /**
- * Tray mode: window can stay on the desktop, but leaves the Windows taskbar
- * and lives in the notification area (hidden icons). Close / minimize hide to tray.
+ * Tray mode: minimize hides to notification area (not taskbar).
+ * Titlebar X / Alt+F4 always quit — never intercept close.
  */
-export function useMinimizeToTray({ enabled }: UseTrayOptions) {
+export function useMinimizeToTray({ enabled, onError }: UseTrayOptions) {
   const { t } = useLocale();
   const trayRef = useRef<TrayIcon | null>(null);
   const [trayReady, setTrayReady] = useState(false);
   const wasEnabledRef = useRef(false);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const labelsRef = useRef({ show: t("tray.show"), quit: t("tray.quit") });
+  const setupGen = useRef(0);
   labelsRef.current = { show: t("tray.show"), quit: t("tray.quit") };
 
-  useEffect(() => {
-    let cancelled = false;
-    const wasEnabled = wasEnabledRef.current;
-    wasEnabledRef.current = enabled;
-
-    const teardown = async () => {
-      const tray = trayRef.current;
-      trayRef.current = null;
-      setTrayReady(false);
-      if (tray) {
-        try {
-          await tray.close();
-        } catch {
-          /* ignore */
-        }
-      }
+  const teardown = async () => {
+    const tray = trayRef.current;
+    trayRef.current = null;
+    setTrayReady(false);
+    if (tray) {
       try {
-        await TrayIcon.removeById(TRAY_ID);
+        await tray.close();
       } catch {
         /* ignore */
       }
-    };
+    }
+    try {
+      await TrayIcon.removeById(TRAY_ID);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const setupTray = async (gen: number) => {
+    await teardown();
+    if (gen !== setupGen.current) return;
+
+    try {
+      const showItem = await MenuItem.new({
+        id: "show",
+        text: labelsRef.current.show,
+        action: () => {
+          void showMainWindow();
+        },
+      });
+      const quitItem = await MenuItem.new({
+        id: "quit",
+        text: labelsRef.current.quit,
+        action: () => {
+          void exit(0);
+        },
+      });
+      const menu = await Menu.new({ items: [showItem, quitItem] });
+      const icon = await defaultWindowIcon();
+      if (!icon) {
+        throw new Error("defaultWindowIcon returned null");
+      }
+      if (gen !== setupGen.current) return;
+
+      const tray = await TrayIcon.new({
+        id: TRAY_ID,
+        icon,
+        tooltip: "CPU-ZE",
+        menu,
+        menuOnLeftClick: false,
+        action: (event: TrayIconEvent) => {
+          if (
+            event.type === "Click" &&
+            event.button === "Left" &&
+            event.buttonState === "Up"
+          ) {
+            void showMainWindow();
+          }
+        },
+      });
+
+      if (gen !== setupGen.current) {
+        await tray.close();
+        return;
+      }
+      trayRef.current = tray;
+      setTrayReady(true);
+      await applySkipTaskbar(true);
+    } catch (e) {
+      console.error("tray setup failed", e);
+      trayRef.current = null;
+      setTrayReady(false);
+      onErrorRef.current?.(t("tray.setupFailed"));
+      // Never leave the window unreachable after tray failure.
+      try {
+        await showMainWindow({ skipTaskbar: false });
+        await applySkipTaskbar(false);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  useEffect(() => {
+    const wasEnabled = wasEnabledRef.current;
+    wasEnabledRef.current = enabled;
+    const gen = ++setupGen.current;
 
     void (async () => {
-      await teardown();
-      if (cancelled) return;
-
       if (!enabled) {
-        // Only restore when the user turns the option off (not on first mount).
+        await teardown();
         if (wasEnabled) {
           try {
             await showMainWindow({ skipTaskbar: false });
@@ -94,64 +160,14 @@ export function useMinimizeToTray({ enabled }: UseTrayOptions) {
         }
         return;
       }
-
-      try {
-        const showItem = await MenuItem.new({
-          id: "show",
-          text: labelsRef.current.show,
-          action: () => {
-            void showMainWindow();
-          },
-        });
-        const quitItem = await MenuItem.new({
-          id: "quit",
-          text: labelsRef.current.quit,
-          action: () => {
-            void exit(0);
-          },
-        });
-        const menu = await Menu.new({ items: [showItem, quitItem] });
-        const icon = await defaultWindowIcon();
-        if (!icon) {
-          throw new Error("defaultWindowIcon returned null");
-        }
-        if (cancelled) return;
-
-        const tray = await TrayIcon.new({
-          id: TRAY_ID,
-          icon,
-          tooltip: "CPU-ZE",
-          menu,
-          menuOnLeftClick: false,
-          action: (event: TrayIconEvent) => {
-            if (
-              event.type === "Click" &&
-              event.button === "Left" &&
-              event.buttonState === "Up"
-            ) {
-              void showMainWindow();
-            }
-          },
-        });
-
-        if (cancelled) {
-          await tray.close();
-          return;
-        }
-        trayRef.current = tray;
-        setTrayReady(true);
-        await applySkipTaskbar(true);
-      } catch (e) {
-        console.error("tray setup failed", e);
-        trayRef.current = null;
-        setTrayReady(false);
-      }
+      await setupTray(gen);
     })();
 
     return () => {
-      cancelled = true;
+      setupGen.current += 1;
       void teardown();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setupTray closed over labels/refs
   }, [enabled]);
 
   // Refresh tray menu labels when locale changes (without rebuilding the icon).
@@ -181,24 +197,20 @@ export function useMinimizeToTray({ enabled }: UseTrayOptions) {
     })();
   }, [enabled, t]);
 
+  // After sleep/wake (or return from hide): recreate tray — OS icon often dies.
   useEffect(() => {
-    if (!enabled || !trayReady) return;
-    const win = getCurrentWindow();
-    let unlistenClose: (() => void) | undefined;
-
-    void win
-      .onCloseRequested(async (event) => {
-        event.preventDefault();
-        await hideMainWindowToTray();
-      })
-      .then((fn) => {
-        unlistenClose = fn;
-      });
-
-    return () => {
-      unlistenClose?.();
+    if (!enabled) return;
+    const onVis = () => {
+      if (document.hidden) return;
+      const gen = ++setupGen.current;
+      void setupTray(gen);
     };
-  }, [enabled, trayReady]);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   return trayReady;
 }

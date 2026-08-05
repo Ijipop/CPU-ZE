@@ -35,6 +35,12 @@ pub struct ProcessInfo {
     pub path: Option<String>,
     pub parent_pid: Option<u32>,
     pub command_line: Option<String>,
+    /// Disk bytes/sec (read + write) via `GetProcessIoCounters` delta. 0 until enriched.
+    pub disk_bytes_per_sec: u64,
+    /// Net bytes/sec — stubbed to 0 (see docs).
+    pub net_bytes_per_sec: u64,
+    /// GPU util % — currently None (no per-process GPU counter here).
+    pub gpu_util: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -85,6 +91,10 @@ const CRITICAL_PROCESS_NAMES: &[&str] = &[
 const PWS_MAX_QUERIES_PER_TICK: usize = 12;
 const PWS_CACHE_TTL: Duration = Duration::from_secs(4);
 const CMD_LINES_MAX_PIDS: usize = 40;
+/// Cap hottest processes we sample for IO delta per tick.
+const IO_ENRICH_MAX: usize = 24;
+/// Cap on the number of paths we resolve icons for per call.
+const ICONS_MAX_PATHS: usize = 40;
 
 struct PwsCache {
     map: HashMap<u32, (Instant, u64)>,
@@ -102,6 +112,18 @@ fn pws_cache() -> &'static Mutex<PwsCache> {
     use std::sync::OnceLock;
     static CACHE: OnceLock<Mutex<PwsCache>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(PwsCache::new()))
+}
+
+fn io_cache() -> &'static Mutex<HashMap<u32, (Instant, u64)>> {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Mutex<HashMap<u32, (Instant, u64)>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn icon_cache() -> &'static Mutex<HashMap<String, Option<String>>> {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Mutex<HashMap<String, Option<String>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn lock_err(what: &str) -> String {
@@ -221,6 +243,9 @@ fn build_snapshot(
                 } else {
                     None
                 },
+                disk_bytes_per_sec: 0,
+                net_bytes_per_sec: 0,
+                gpu_util: None,
             }
         })
         .filter(|p| !p.name.is_empty())
@@ -296,11 +321,67 @@ fn enrich_private_working_set(processes: &mut [ProcessInfo]) {
     }
 }
 
+/// Sample IO for the hottest processes and compute bytes/sec deltas since last call.
+fn enrich_process_io(processes: &mut [ProcessInfo]) {
+    if processes.is_empty() {
+        return;
+    }
+
+    let mut idxs: Vec<usize> = (0..processes.len()).collect();
+    idxs.sort_by(|&a, &b| {
+        let pa = &processes[a];
+        let pb = &processes[b];
+        pb.cpu
+            .partial_cmp(&pa.cpu)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| pb.working_set_bytes.cmp(&pa.working_set_bytes))
+    });
+    idxs.truncate(IO_ENRICH_MAX);
+
+    let Ok(mut cache) = io_cache().lock() else {
+        return;
+    };
+    let now = Instant::now();
+
+    for idx in idxs {
+        let pid = processes[idx].pid;
+        let Some(total) = win_metrics::process_disk_bytes(pid) else {
+            continue;
+        };
+        if let Some((t_prev, bytes_prev)) = cache.get(&pid).copied() {
+            let dt = now.duration_since(t_prev).as_secs_f64();
+            if dt > 0.05 {
+                let dbytes = total.saturating_sub(bytes_prev);
+                let rate = (dbytes as f64 / dt).round() as u64;
+                processes[idx].disk_bytes_per_sec = rate;
+            }
+        }
+        cache.insert(pid, (now, total));
+    }
+
+    let live: std::collections::HashSet<u32> = processes.iter().map(|p| p.pid).collect();
+    cache.retain(|pid, _| live.contains(pid));
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessCmdLine {
     pub pid: u32,
     pub command_line: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessIconDto {
+    pub path: String,
+    pub png_base64: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AffinityDto {
+    pub mask: u64,
+    pub system_mask: u64,
 }
 
 #[tauri::command]
@@ -309,10 +390,12 @@ pub fn list_processes(
     detail: Option<bool>,
     enrich_pws: Option<bool>,
     include_cmd: Option<bool>,
+    enrich_io: Option<bool>,
 ) -> Result<SystemSnapshot, String> {
     let detail = detail.unwrap_or(true);
     let enrich = enrich_pws.unwrap_or(detail);
     let include_cmd = include_cmd.unwrap_or(false);
+    let enrich_io = enrich_io.unwrap_or(false);
     static WARMED: std::sync::atomic::AtomicBool =
         std::sync::atomic::AtomicBool::new(false);
     let first = !WARMED.swap(true, std::sync::atomic::Ordering::SeqCst);
@@ -366,6 +449,9 @@ pub fn list_processes(
     if detail && enrich {
         enrich_private_working_set(&mut snapshot.processes);
     }
+    if detail && enrich_io {
+        enrich_process_io(&mut snapshot.processes);
+    }
 
     Ok(snapshot)
 }
@@ -406,6 +492,24 @@ fn is_critical_process_name(name: &str) -> bool {
     CRITICAL_PROCESS_NAMES
         .iter()
         .any(|blocked| lower == *blocked)
+}
+
+/// Reject PIDs that are unsafe to alter (kernel PIDs, self, critical processes).
+fn guard_mutable_pid(pid: u32, state: &State<'_, AppState>) -> Result<(), String> {
+    if pid == 0 || pid == 4 {
+        return Err("Processus système protégé".into());
+    }
+    if pid == std::process::id() {
+        return Err("Ne peut cibler CPU-ZE lui-même".into());
+    }
+    let sys = state.sys.lock().map_err(|_| lock_err("sys"))?;
+    if let Some(process) = sys.process(Pid::from_u32(pid)) {
+        let name = process.name().to_string_lossy().into_owned();
+        if is_critical_process_name(&name) {
+            return Err(format!("Processus critique protégé : {} ({})", name, pid));
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -657,6 +761,21 @@ pub fn set_window_compact_mode(
     Ok(prev)
 }
 
+/// Drop NVML handle + PWS/IO caches after sleep/wake so stuck driver calls don't pile up.
+#[tauri::command]
+pub fn on_app_resume(state: State<'_, AppState>) -> Result<(), String> {
+    if let Ok(mut nvml) = state.nvml.lock() {
+        *nvml = None;
+    }
+    if let Ok(mut cache) = pws_cache().lock() {
+        cache.map.clear();
+    }
+    if let Ok(mut cache) = io_cache().lock() {
+        cache.clear();
+    }
+    Ok(())
+}
+
 /// Hide or restore the main window on the Windows taskbar.
 /// Uses WS_EX_TOOLWINDOW because Tauri's setSkipTaskbar is unreliable on Win10/11.
 #[tauri::command]
@@ -709,4 +828,149 @@ pub fn set_hidden_from_taskbar(app: tauri::AppHandle, hide: bool) -> Result<(), 
     }
 
     Ok(())
+}
+
+/// Open Explorer with the target file selected (Windows only).
+#[tauri::command]
+pub fn reveal_in_explorer(path: String) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("Chemin vide".into());
+    }
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("Chemin introuvable: {path}"));
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // raw_arg keeps our quoting intact — Explorer needs `/select,"C:\path with spaces"`.
+        std::process::Command::new("explorer.exe")
+            .raw_arg(format!("/select,\"{}\"", path.replace('"', "")))
+            .spawn()
+            .map_err(|e| format!("Impossible d'ouvrir l'explorateur: {e}"))?;
+    }
+    #[cfg(not(windows))]
+    {
+        return Err("reveal_in_explorer n'est disponible que sous Windows".into());
+    }
+
+    Ok(())
+}
+
+/// Resolve shell icons for up to ICONS_MAX_PATHS paths (cached by path).
+#[tauri::command]
+pub fn get_process_icons(paths: Vec<String>) -> Result<Vec<ProcessIconDto>, String> {
+    let mut out = Vec::with_capacity(paths.len().min(ICONS_MAX_PATHS));
+
+    let mut cache = icon_cache().lock().map_err(|_| lock_err("icon_cache"))?;
+
+    for raw in paths.into_iter().take(ICONS_MAX_PATHS) {
+        let path = raw.trim().to_string();
+        if path.is_empty() {
+            continue;
+        }
+        if let Some(hit) = cache.get(&path) {
+            out.push(ProcessIconDto {
+                path: path.clone(),
+                png_base64: hit.clone(),
+            });
+            continue;
+        }
+        let png = {
+            #[cfg(windows)]
+            {
+                crate::win_icons::extract_icon_png_base64(&path)
+            }
+            #[cfg(not(windows))]
+            {
+                None
+            }
+        };
+        cache.insert(path.clone(), png.clone());
+        out.push(ProcessIconDto {
+            path,
+            png_base64: png,
+        });
+    }
+
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn set_process_priority(
+    pid: u32,
+    class: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    guard_mutable_pid(pid, &state)?;
+    #[cfg(windows)]
+    {
+        crate::proc_ctrl::set_priority(pid, &class)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = class;
+        Err("Non supporté hors Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn suspend_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> {
+    guard_mutable_pid(pid, &state)?;
+    #[cfg(windows)]
+    {
+        crate::proc_ctrl::suspend(pid)
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Non supporté hors Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn resume_process(pid: u32, state: State<'_, AppState>) -> Result<(), String> {
+    guard_mutable_pid(pid, &state)?;
+    #[cfg(windows)]
+    {
+        crate::proc_ctrl::resume(pid)
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Non supporté hors Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn get_process_affinity(pid: u32) -> Result<AffinityDto, String> {
+    if pid == 0 || pid == 4 {
+        return Err("Processus système protégé".into());
+    }
+    #[cfg(windows)]
+    {
+        let (mask, system_mask) = crate::proc_ctrl::get_affinity(pid)?;
+        Ok(AffinityDto { mask, system_mask })
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Non supporté hors Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn set_process_affinity(
+    pid: u32,
+    mask: u64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    guard_mutable_pid(pid, &state)?;
+    #[cfg(windows)]
+    {
+        crate::proc_ctrl::set_affinity(pid, mask)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = mask;
+        Err("Non supporté hors Windows".into())
+    }
 }

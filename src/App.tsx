@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import {
   availableMonitors,
   getCurrentWindow,
@@ -37,12 +38,16 @@ import {
 import type { ProcessTabId, TabId } from "./types";
 import { useLocale } from "./i18n/LocaleContext";
 import { useMinimizeToTray } from "./hooks/useMinimizeToTray";
+import { useAppResume } from "./hooks/useAppResume";
 import { useTempExtremes } from "./hooks/useTempExtremes";
+import { useMetricHistory } from "./hooks/useMetricHistory";
+import { useToast } from "./components/Toast";
 import "./styles.css";
 
 const NORMAL_MIN = { width: 420, height: 320 };
 const COMPACT_MIN = { width: 280, height: 84 };
 const COMPACT_SIZE = { width: 320, height: 90 };
+const MORPH_TIMEOUT_MS = 1500;
 
 /** One frame so the morph veil can paint before the window chrome snaps. */
 function nextFrame(): Promise<void> {
@@ -111,8 +116,12 @@ function AppInner() {
   const compactRef = useRef(false);
   const morphingRef = useRef(false);
   const skipPersist = useRef(false);
+  const justResumedRef = useRef(false);
   const detailTimer = useRef<number | undefined>(undefined);
+  const morphTimer = useRef<number | undefined>(undefined);
   const frozen = useCtrlHeld();
+  const justResumed = useAppResume();
+  justResumedRef.current = justResumed;
   const processDetail =
     !compact && allowDetail && (tab === "cpu" || tab === "ram");
   // ~1s detail is enough; faster than that mostly burns WebView2 CPU redrawing the table.
@@ -120,7 +129,12 @@ function AppInner() {
   const { snapshot, error, loading, kill, requestCommandLines } = useProcesses(
     processInterval,
     frozen && !compact,
-    { detail: processDetail, pauseWhenHidden: true, paused: morphing },
+    {
+      detail: processDetail,
+      pauseWhenHidden: true,
+      paused: morphing,
+      justResumed,
+    },
   );
   const tempsEnabled = true;
   const tempsInterval = tab === "temp" && !compact ? 2000 : 4000;
@@ -128,10 +142,38 @@ function AppInner() {
     snapshot: temps,
     error: tempError,
     loading: tempLoading,
-  } = useTemperatures(tempsInterval, tempsEnabled);
+  } = useTemperatures(tempsInterval, tempsEnabled, justResumed);
   const tempStats = useTempExtremes(temps.cpu, temps.gpu);
   const updater = useUpdater(true);
-  useMinimizeToTray({ enabled: minimizeToTray });
+  const toast = useToast();
+  useMinimizeToTray({
+    enabled: minimizeToTray,
+    onError: (msg) => toast.push(msg, "err"),
+  });
+  const metricHistory = useMetricHistory(
+    snapshot.totalCpu,
+    snapshot.usedMemory,
+    snapshot.totalMemory,
+    !compact && !morphing,
+  );
+
+  const clearMorphStuck = useCallback(() => {
+    if (morphTimer.current !== undefined) {
+      window.clearTimeout(morphTimer.current);
+      morphTimer.current = undefined;
+    }
+  }, []);
+
+  const armMorphTimeout = useCallback(() => {
+    clearMorphStuck();
+    morphTimer.current = window.setTimeout(() => {
+      morphTimer.current = undefined;
+      if (!morphingRef.current) return;
+      morphingRef.current = false;
+      skipPersist.current = false;
+      setMorphing(false);
+    }, MORPH_TIMEOUT_MS);
+  }, [clearMorphStuck]);
 
   useEffect(() => {
     compactRef.current = compact;
@@ -158,6 +200,9 @@ function AppInner() {
       if (detailTimer.current !== undefined) {
         window.clearTimeout(detailTimer.current);
       }
+      if (morphTimer.current !== undefined) {
+        window.clearTimeout(morphTimer.current);
+      }
     };
   }, []);
 
@@ -172,7 +217,10 @@ function AppInner() {
   }, []);
 
   const persistCurrent = useCallback(async () => {
-    if (skipPersist.current) return;
+    if (skipPersist.current || morphingRef.current || justResumedRef.current) {
+      return;
+    }
+    if (typeof document !== "undefined" && document.hidden) return;
     const win = getCurrentWindow();
     try {
       const pos = await win.outerPosition();
@@ -195,6 +243,31 @@ function AppInner() {
       /* ignore */
     }
   }, []);
+
+  // After wake: reclaim off-screen geometry from DWM storms.
+  useEffect(() => {
+    if (!justResumed || !geomReady) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const win = getCurrentWindow();
+        const pos = await win.outerPosition();
+        const size = await win.outerSize();
+        const clamped = await clampPosition(pos.x, pos.y, size.width, size.height);
+        if (cancelled) return;
+        if (clamped.x === pos.x && clamped.y === pos.y) return;
+        skipPersist.current = true;
+        await win.setPosition(new PhysicalPosition(clamped.x, clamped.y));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        skipPersist.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [justResumed, geomReady]);
 
   // Restore geometry + optional micro start once.
   useEffect(() => {
@@ -293,6 +366,7 @@ function AppInner() {
     try {
       morphingRef.current = true;
       setMorphing(true);
+      armMorphTimeout();
       setAllowDetail(false);
       if (detailTimer.current !== undefined) {
         window.clearTimeout(detailTimer.current);
@@ -321,17 +395,19 @@ function AppInner() {
     } catch (e) {
       console.error(e);
     } finally {
+      clearMorphStuck();
       skipPersist.current = false;
       setMorphing(false);
       morphingRef.current = false;
     }
-  }, []);
+  }, [armMorphTimeout, clearMorphStuck]);
 
   const exitCompact = useCallback(async () => {
     if (morphingRef.current || !compactRef.current) return;
     try {
       morphingRef.current = true;
       setMorphing(true);
+      armMorphTimeout();
       setAllowDetail(false);
       if (detailTimer.current !== undefined) {
         window.clearTimeout(detailTimer.current);
@@ -365,11 +441,12 @@ function AppInner() {
       setCompact(false);
       scheduleDetail(280);
     } finally {
+      clearMorphStuck();
       skipPersist.current = false;
       setMorphing(false);
       morphingRef.current = false;
     }
-  }, [scheduleDetail]);
+  }, [armMorphTimeout, clearMorphStuck, scheduleDetail]);
 
   const toggleCompact = useCallback(() => {
     if (morphingRef.current) return;
@@ -439,6 +516,9 @@ function AppInner() {
         onToggleMinimizeToTray={onToggleMinimizeToTray}
         startCompact={startCompact}
         onToggleStartCompact={onToggleStartCompact}
+        updateStatus={updater.status}
+        updateMessage={updater.message}
+        onCheckUpdate={() => void updater.checkNow()}
       />
 
       <div className="app-body">
@@ -459,6 +539,8 @@ function AppInner() {
               usedMemory={snapshot.usedMemory}
               totalMemory={snapshot.totalMemory}
               processCount={snapshot.processCount || snapshot.processes.length}
+              cpuHistory={metricHistory.cpu}
+              ramHistory={metricHistory.ramPct}
             />
 
             <ProcessTabs active={tab} onChange={setTab} />
@@ -481,6 +563,7 @@ function AppInner() {
                 <ProcessTable
                   processes={snapshot.processes}
                   totalMemory={snapshot.totalMemory}
+                  cpuCount={snapshot.cpuCount}
                   tab={processTab}
                   frozen={frozen}
                   filter={processFilter}
@@ -510,11 +593,7 @@ function AppInner() {
               />
             </div>
 
-            <AppFooter
-              updateStatus={updater.status}
-              updateMessage={updater.message}
-              onCheckUpdate={() => void updater.checkNow()}
-            />
+            <AppFooter />
           </div>
         ) : (
           <div className="view-pane">

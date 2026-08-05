@@ -10,7 +10,8 @@ use windows::Win32::System::SystemInformation::{
     GlobalMemoryStatusEx, MEMORYSTATUSEX,
 };
 use windows::Win32::System::Threading::{
-    GetSystemTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    GetProcessIoCounters, GetSystemTimes, OpenProcess, IO_COUNTERS,
+    PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -115,6 +116,22 @@ fn private_working_set_handle(handle: HANDLE) -> Option<u64> {
     }
     let counters = unsafe { counters.assume_init() };
     Some(counters.PrivateWorkingSetSize as u64)
+}
+
+/// Cumulative disk-transfer bytes (read + write) for `pid` via `GetProcessIoCounters`.
+/// Returns `None` when the target refuses access or has exited.
+pub fn process_disk_bytes(pid: u32) -> Option<u64> {
+    if pid == 0 {
+        return None;
+    }
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+    let mut counters = IO_COUNTERS::default();
+    let res = unsafe { GetProcessIoCounters(handle, &mut counters) };
+    unsafe {
+        let _ = CloseHandle(handle);
+    }
+    res.ok()?;
+    Some(counters.ReadTransferCount.saturating_add(counters.WriteTransferCount))
 }
 
 pub fn qpc_now() -> u64 {

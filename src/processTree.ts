@@ -1,6 +1,14 @@
 import type { ProcessInfo, ProcessViewMode } from "./types";
 
-export type SortKey = "name" | "pid" | "cpu" | "ram";
+export type SortKey =
+  | "name"
+  | "pid"
+  | "parent"
+  | "cpu"
+  | "ram"
+  | "disk"
+  | "net"
+  | "gpu";
 export type SortDir = "asc" | "desc";
 
 export interface TreeNode {
@@ -75,11 +83,23 @@ export function compareProcesses(
     case "pid":
       cmp = a.pid - b.pid;
       break;
+    case "parent":
+      cmp = (a.parentPid ?? -1) - (b.parentPid ?? -1);
+      break;
     case "cpu":
       cmp = a.cpu - b.cpu;
       break;
     case "ram":
       cmp = a.memoryBytes - b.memoryBytes;
+      break;
+    case "disk":
+      cmp = (a.diskBytesPerSec ?? 0) - (b.diskBytesPerSec ?? 0);
+      break;
+    case "net":
+      cmp = (a.netBytesPerSec ?? 0) - (b.netBytesPerSec ?? 0);
+      break;
+    case "gpu":
+      cmp = (a.gpuUtil ?? -1) - (b.gpuUtil ?? -1);
       break;
   }
   if (cmp === 0) {
@@ -105,11 +125,27 @@ function sortNodes(
       case "pid":
         cmp = a.process.pid - b.process.pid;
         break;
+      case "parent":
+        cmp =
+          (a.process.parentPid ?? -1) - (b.process.parentPid ?? -1);
+        break;
       case "cpu":
         cmp = a.aggCpu - b.aggCpu;
         break;
       case "ram":
         cmp = a.aggMemoryBytes - b.aggMemoryBytes;
+        break;
+      case "disk":
+        cmp =
+          (a.process.diskBytesPerSec ?? 0) - (b.process.diskBytesPerSec ?? 0);
+        break;
+      case "net":
+        cmp =
+          (a.process.netBytesPerSec ?? 0) - (b.process.netBytesPerSec ?? 0);
+        break;
+      case "gpu":
+        cmp = (a.process.gpuUtil ?? -1) - (b.process.gpuUtil ?? -1);
+        break;
         break;
     }
     if (cmp === 0) {
@@ -324,11 +360,29 @@ export function buildDisplayRows(
         case "pid":
           cmp = (a.members[0]?.pid ?? 0) - (b.members[0]?.pid ?? 0);
           break;
+        case "parent":
+          cmp =
+            (a.members[0]?.parentPid ?? -1) - (b.members[0]?.parentPid ?? -1);
+          break;
         case "cpu":
           cmp = a.aggCpu - b.aggCpu;
           break;
         case "ram":
           cmp = a.aggMemoryBytes - b.aggMemoryBytes;
+          break;
+        case "disk":
+          cmp =
+            (a.members[0]?.diskBytesPerSec ?? 0) -
+            (b.members[0]?.diskBytesPerSec ?? 0);
+          break;
+        case "net":
+          cmp =
+            (a.members[0]?.netBytesPerSec ?? 0) -
+            (b.members[0]?.netBytesPerSec ?? 0);
+          break;
+        case "gpu":
+          cmp =
+            (a.members[0]?.gpuUtil ?? -1) - (b.members[0]?.gpuUtil ?? -1);
           break;
       }
       if (cmp === 0) return b.aggCpu - a.aggCpu || b.aggMemoryBytes - a.aggMemoryBytes;

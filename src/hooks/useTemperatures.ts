@@ -23,19 +23,30 @@ function tempsEqual(a: TemperatureSnapshot, b: TemperatureSnapshot): boolean {
   );
 }
 
-export function useTemperatures(intervalMs = 1000, enabled = true) {
+export function useTemperatures(
+  intervalMs = 1000,
+  enabled = true,
+  justResumed = false,
+) {
   const [snapshot, setSnapshot] = useState<TemperatureSnapshot>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const visible = useWindowVisible(true);
   const alive = useRef(true);
   const inFlight = useRef(false);
+  const pending = useRef(false);
   const enabledRef = useRef(enabled);
+  const justResumedRef = useRef(justResumed);
   enabledRef.current = enabled;
+  justResumedRef.current = justResumed;
 
   const refresh = useCallback(async () => {
     if (!enabledRef.current) return;
-    if (inFlight.current) return;
+    if (justResumedRef.current) return;
+    if (inFlight.current) {
+      pending.current = true;
+      return;
+    }
     inFlight.current = true;
     try {
       const data = await invoke<TemperatureSnapshot>("get_temperatures");
@@ -48,12 +59,16 @@ export function useTemperatures(intervalMs = 1000, enabled = true) {
     } finally {
       inFlight.current = false;
       if (alive.current) setLoading(false);
+      if (pending.current && alive.current && enabledRef.current) {
+        pending.current = false;
+        void refresh();
+      }
     }
   }, []);
 
   useEffect(() => {
     alive.current = true;
-    if (!enabled || !visible) {
+    if (!enabled || !visible || justResumed) {
       setLoading(false);
       return () => {
         alive.current = false;
@@ -65,7 +80,7 @@ export function useTemperatures(intervalMs = 1000, enabled = true) {
       alive.current = false;
       window.clearInterval(id);
     };
-  }, [refresh, intervalMs, enabled, visible]);
+  }, [refresh, intervalMs, enabled, visible, justResumed]);
 
   return { snapshot, error, loading, refresh };
 }
