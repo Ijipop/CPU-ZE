@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { exit } from "@tauri-apps/plugin-process";
@@ -39,17 +39,30 @@ export function TitleBar({
   const win = getCurrentWindow();
   const { t } = useLocale();
   const [maximized, setMaximized] = useState(false);
+  const maxTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     void (async () => {
       setMaximized(await win.isMaximized());
-      unlisten = await win.onResized(async () => {
-        setMaximized(await win.isMaximized());
+      unlisten = await win.onResized(() => {
+        if (maxTimer.current !== undefined) {
+          window.clearTimeout(maxTimer.current);
+        }
+        maxTimer.current = window.setTimeout(() => {
+          maxTimer.current = undefined;
+          void (async () => {
+            const next = await win.isMaximized();
+            setMaximized((prev) => (prev === next ? prev : next));
+          })();
+        }, 180);
       });
     })();
     return () => {
       unlisten?.();
+      if (maxTimer.current !== undefined) {
+        window.clearTimeout(maxTimer.current);
+      }
     };
   }, [win]);
 
@@ -179,6 +192,6 @@ export async function loadAppVersion(): Promise<string> {
   try {
     return await getVersion();
   } catch {
-    return "0.3.2";
+    return "";
   }
 }

@@ -135,20 +135,50 @@ export function ProcessTable({
   );
 
   const [shellW, setShellW] = useState(800);
+  const shellWRef = useRef(800);
   const narrow = shellW < 560;
   const cramped = shellW < 720;
+
+  const applyShellWidth = useCallback((w: number) => {
+    if (!Number.isFinite(w) || w <= 0) return;
+    const prev = shellWRef.current;
+    const prevNarrow = prev < 560;
+    const prevCramped = prev < 720;
+    const nextNarrow = w < 560;
+    const nextCramped = w < 720;
+    const quantized = Math.round(w / 16) * 16;
+    const prevQ = Math.round(prev / 16) * 16;
+    // Only re-render on layout-bucket change or 16px steps (tableMinWidth).
+    if (
+      prevNarrow === nextNarrow &&
+      prevCramped === nextCramped &&
+      prevQ === quantized
+    ) {
+      shellWRef.current = w;
+      return;
+    }
+    shellWRef.current = w;
+    setShellW(w);
+  }, []);
 
   useEffect(() => {
     const el = shellRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => applyShellWidth(el.clientWidth);
     const ro = new ResizeObserver((entries) => {
+      if (document.documentElement.classList.contains("is-resizing")) return;
       const w = entries[0]?.contentRect.width;
-      if (w != null && Number.isFinite(w)) setShellW(w);
+      if (w != null) applyShellWidth(w);
     });
     ro.observe(el);
-    setShellW(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
+    measure();
+    const onIdle = () => measure();
+    window.addEventListener("cpuze-resize-idle", onIdle);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("cpuze-resize-idle", onIdle);
+    };
+  }, [applyShellWidth]);
 
   const columns = useMemo(() => {
     let cols = visibleColumns(colPrefs);
@@ -238,6 +268,7 @@ export function ProcessTable({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    let heightRaf: number | undefined;
     const onScroll = () => {
       if (scrollRaf.current !== undefined) return;
       scrollRaf.current = requestAnimationFrame(() => {
@@ -245,17 +276,35 @@ export function ProcessTable({
         setScrollTop(el.scrollTop);
       });
     };
-    const ro = new ResizeObserver(() => setViewportH(el.clientHeight));
+    const applyHeight = () => {
+      if (heightRaf !== undefined) return;
+      heightRaf = requestAnimationFrame(() => {
+        heightRaf = undefined;
+        setViewportH(el.clientHeight);
+      });
+    };
+    const ro = new ResizeObserver(() => {
+      if (document.documentElement.classList.contains("is-resizing")) return;
+      applyHeight();
+    });
     setViewportH(el.clientHeight);
     setScrollTop(el.scrollTop);
     el.addEventListener("scroll", onScroll, { passive: true });
     ro.observe(el);
+    const onIdle = () => {
+      setViewportH(el.clientHeight);
+    };
+    window.addEventListener("cpuze-resize-idle", onIdle);
     return () => {
       el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("cpuze-resize-idle", onIdle);
       ro.disconnect();
       if (scrollRaf.current !== undefined) {
         cancelAnimationFrame(scrollRaf.current);
         scrollRaf.current = undefined;
+      }
+      if (heightRaf !== undefined) {
+        cancelAnimationFrame(heightRaf);
       }
     };
   }, []);

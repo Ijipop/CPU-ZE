@@ -109,6 +109,7 @@ function AppInner() {
   const [showHelp, setShowHelp] = useState(false);
   const [geomReady, setGeomReady] = useState(false);
   const [morphing, setMorphing] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   /** Defer full process refresh until after expand paints (avoids multi-second hitch). */
   const [allowDetail, setAllowDetail] = useState(true);
   const normalGeom = useRef<PhysicalGeom | null>(loadNormalGeom());
@@ -117,11 +118,14 @@ function AppInner() {
   const morphingRef = useRef(false);
   const skipPersist = useRef(false);
   const justResumedRef = useRef(false);
+  const isResizingRef = useRef(false);
   const detailTimer = useRef<number | undefined>(undefined);
   const morphTimer = useRef<number | undefined>(undefined);
+  const resizeIdleTimer = useRef<number | undefined>(undefined);
   const frozen = useCtrlHeld();
   const justResumed = useAppResume();
   justResumedRef.current = justResumed;
+  isResizingRef.current = isResizing;
   const processDetail =
     !compact && allowDetail && (tab === "cpu" || tab === "ram");
   // ~1s detail is enough; faster than that mostly burns WebView2 CPU redrawing the table.
@@ -132,7 +136,7 @@ function AppInner() {
     {
       detail: processDetail,
       pauseWhenHidden: true,
-      paused: morphing,
+      paused: morphing || isResizing,
       justResumed,
     },
   );
@@ -142,7 +146,7 @@ function AppInner() {
     snapshot: temps,
     error: tempError,
     loading: tempLoading,
-  } = useTemperatures(tempsInterval, tempsEnabled, justResumed);
+  } = useTemperatures(tempsInterval, tempsEnabled, justResumed || isResizing);
   const tempStats = useTempExtremes(temps.cpu, temps.gpu);
   const updater = useUpdater(true);
   const toast = useToast();
@@ -154,7 +158,7 @@ function AppInner() {
     snapshot.totalCpu,
     snapshot.usedMemory,
     snapshot.totalMemory,
-    !compact && !morphing,
+    !compact && !morphing && !isResizing,
   );
 
   const clearMorphStuck = useCallback(() => {
@@ -217,7 +221,12 @@ function AppInner() {
   }, []);
 
   const persistCurrent = useCallback(async () => {
-    if (skipPersist.current || morphingRef.current || justResumedRef.current) {
+    if (
+      skipPersist.current ||
+      morphingRef.current ||
+      justResumedRef.current ||
+      isResizingRef.current
+    ) {
       return;
     }
     if (typeof document !== "undefined" && document.hidden) return;
@@ -329,27 +338,54 @@ function AppInner() {
     };
   }, []);
 
-  // Persist position while moving / resizing.
+  // Track window drag/resize: pause polls + heavy layout until idle.
   useEffect(() => {
     if (!geomReady) return;
     const win = getCurrentWindow();
-    let timer: number | undefined;
-    const schedule = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => void persistCurrent(), 250);
+    let persistTimer: number | undefined;
+    const markActivity = () => {
+      setIsResizing((prev) => {
+        if (!prev) {
+          document.documentElement.classList.add("is-resizing");
+        }
+        return true;
+      });
+      isResizingRef.current = true;
+      if (resizeIdleTimer.current !== undefined) {
+        window.clearTimeout(resizeIdleTimer.current);
+      }
+      resizeIdleTimer.current = window.setTimeout(() => {
+        resizeIdleTimer.current = undefined;
+        isResizingRef.current = false;
+        setIsResizing(false);
+        document.documentElement.classList.remove("is-resizing");
+        window.dispatchEvent(new Event("cpuze-resize-idle"));
+        void persistCurrent();
+      }, 200);
+      window.clearTimeout(persistTimer);
+      persistTimer = window.setTimeout(() => {
+        // Persist only after idle; persistCurrent no-ops while isResizing.
+        void persistCurrent();
+      }, 400);
     };
     let unMove: (() => void) | undefined;
     let unResize: (() => void) | undefined;
     void (async () => {
-      unMove = await win.onMoved(() => schedule());
-      unResize = await win.onResized(() => schedule());
+      unMove = await win.onMoved(() => markActivity());
+      unResize = await win.onResized(() => markActivity());
     })();
     const onVis = () => {
       if (document.visibilityState === "hidden") void persistCurrent();
     };
     window.addEventListener("visibilitychange", onVis);
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(persistTimer);
+      if (resizeIdleTimer.current !== undefined) {
+        window.clearTimeout(resizeIdleTimer.current);
+        resizeIdleTimer.current = undefined;
+      }
+      document.documentElement.classList.remove("is-resizing");
+      isResizingRef.current = false;
       unMove?.();
       unResize?.();
       window.removeEventListener("visibilitychange", onVis);
