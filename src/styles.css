@@ -896,9 +896,10 @@ html.is-resizing .bg-glow {
 
 .context-menu {
   position: fixed;
-  z-index: 50;
+  z-index: 150;
   min-width: 200px;
-  max-height: calc(100vh - 16px);
+  max-height: calc(100vh - 48px);
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(140, 180, 200, 0.35) transparent;
@@ -935,11 +936,9 @@ html.is-resizing .bg-glow {
 @keyframes menu-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 

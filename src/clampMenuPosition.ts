@@ -1,6 +1,8 @@
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
 
-const MARGIN = 8;
+const EDGE_MARGIN = 8;
+/** Keep menus clear of the fixed titlebar (`--titlebar-h: 36px`). */
+const TOP_SAFE = 40;
 
 export type MenuPlacement = {
   left: number;
@@ -8,12 +10,13 @@ export type MenuPlacement = {
   maxHeight?: number;
 };
 
-/** Measure natural menu size, then clamp into the viewport with margin. */
+/** Measure natural menu size, then clamp into the viewport with safe margins. */
 export function clampMenuPosition(
   el: HTMLElement,
   x: number,
   y: number,
-  margin = MARGIN,
+  edge = EDGE_MARGIN,
+  topSafe = TOP_SAFE,
 ): MenuPlacement {
   const prevMax = el.style.maxHeight;
   el.style.maxHeight = "none";
@@ -23,15 +26,15 @@ export function clampMenuPosition(
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const maxAvail = Math.max(margin, vh - margin * 2);
+  const maxAvail = Math.max(edge, vh - topSafe - edge);
 
-  const left = Math.max(margin, Math.min(x, vw - width - margin));
+  const left = Math.max(edge, Math.min(x, vw - width - edge));
 
   if (height > maxAvail) {
-    return { left, top: margin, maxHeight: maxAvail };
+    return { left, top: topSafe, maxHeight: maxAvail };
   }
 
-  const top = Math.max(margin, Math.min(y, vh - height - margin));
+  const top = Math.max(topSafe, Math.min(y, vh - height - edge));
   return { left, top };
 }
 
