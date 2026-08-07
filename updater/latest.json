@@ -1,11 +1,11 @@
 {
-    "version":  "0.8.3",
-    "notes":  "## CPU-ZE v0.8.3\n\nMenus contextuels mieux calés quelle que soit la taille de la fenêtre.\n\n### Fixes\n- Position mesurée (plus de clamp fixe 420/280) : le menu reste dans le viewport\n- Scroll uniquement si nécessaire, scrollbar fine sans gutter permanent\n- Même comportement pour le menu colonnes\n\n### Install\n`CPU-ZE_0.8.3_x64-setup.exe`",
-    "pub_date":  "2026-08-07T16:10:47Z",
+    "version":  "0.8.4",
+    "notes":  "## CPU-ZE v0.8.4\n\nLe menu contextuel n\u0027est plus coupé sous la barre de titre.\n\n### Fixes\n- Marge haute sous la titlebar + z-index au-dessus\n- Animation sans scale (évite un clip avec overflow)\n\n### Install\n`CPU-ZE_0.8.4_x64-setup.exe`",
+    "pub_date":  "2026-08-07T16:28:58Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWZuekU5SVFpMXlTYXBOSlJjdG9hUzQrcDFIZFBWVEJKOENYeFhKaVVYL3pSMFVvZU9oVzEwZkEva2dkUW9oaThYM1lZdlNKN09iV1JrbVN1UE9MSFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTE4OTU1CWZpbGU6Q1BVLVpFXzAuOC4zX3g2NC1zZXR1cC5leGUKWmIyeWFvV3VlT0tmbkJkU3VPVE1COXlPY25HTmEvNUFUUmJHR0xsNGVoK0hOYnZUUVhXYVUwakpFTndOak1IOVlrcVVnaXJ6Mm5oSm1rWGVXa2FxRGc9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.8.3/CPU-ZE_0.8.3_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWZYeXdNaU1KelAxUkFhaFlrK1pGTjIrNE5oQkh4aEYxTXdsRFZ6RVl5ZVRTSXNSeCtnSEJOby9CRjdOVUVnRDMrKzlYaUZkeFFsN29LWmtnR2RUeHdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTIwMTE0CWZpbGU6Q1BVLVpFXzAuOC40X3g2NC1zZXR1cC5leGUKT3pweWRLUUFWNXQ4dDQ5Z08razZwbUZSaDJTUU5ZaFozaGVwaDFnOW1uQXYzOVg3QXB3U3dFbGFidm9Dc3ZKTmtzYndDUktmRkZIRXVXUVBnbFlNQ1E9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.8.4/CPU-ZE_0.8.4_x64-setup.exe"
                                          }
                   }
 }
