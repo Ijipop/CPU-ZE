@@ -16,6 +16,7 @@ import { AffinityDialog } from "./AffinityDialog";
 import { useToast } from "./Toast";
 import { useLocale } from "../i18n/LocaleContext";
 import { localizeBackendError, type MessageKey } from "../i18n";
+import { useClampedMenuStyle } from "../clampMenuPosition";
 import {
   loadColumnPrefs,
   loadProcessView,
@@ -83,6 +84,72 @@ function defaultSortForTab(tab: ProcessTabId): { key: SortKeyUi; dir: SortDirUi 
   return tab === "cpu"
     ? { key: "cpu", dir: "desc" }
     : { key: "ram", dir: "desc" };
+}
+
+function ColumnsMenu({
+  x,
+  y,
+  colPrefs,
+  onClose,
+  onToggleHidden,
+  onMove,
+}: {
+  x: number;
+  y: number;
+  colPrefs: ColumnPrefs;
+  onClose: () => void;
+  onToggleHidden: (id: ColumnId) => void;
+  onMove: (id: ColumnId, dir: -1 | 1) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const style = useClampedMenuStyle(ref, x, y);
+  const { t } = useLocale();
+
+  return (
+    <div
+      ref={ref}
+      className="context-menu col-menu"
+      style={style}
+      role="menu"
+      onMouseLeave={onClose}
+    >
+      <div className="context-submenu-label">{t("table.columns")}</div>
+      {COLUMN_DEFS.map((c) => {
+        const hidden = colPrefs.hidden.includes(c.id);
+        return (
+          <div key={c.id} className="col-menu-row">
+            <label className="context-item col-menu-check">
+              <input
+                type="checkbox"
+                checked={!hidden}
+                disabled={!c.canHide}
+                onChange={() => onToggleHidden(c.id)}
+              />
+              {t(c.labelKey as MessageKey)}
+            </label>
+            {c.id !== "name" && (
+              <span className="col-menu-move">
+                <button
+                  type="button"
+                  aria-label="↑"
+                  onClick={() => onMove(c.id, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  aria-label="↓"
+                  onClick={() => onMove(c.id, 1)}
+                >
+                  ↓
+                </button>
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function ProcessTable({
@@ -989,51 +1056,14 @@ export function ProcessTable({
       )}
 
       {colMenu && (
-        <div
-          className="context-menu col-menu"
-          style={{
-            left: Math.min(colMenu.x, window.innerWidth - 260),
-            top: Math.min(colMenu.y, window.innerHeight - 320),
-          }}
-          role="menu"
-          onMouseLeave={() => setColMenu(null)}
-        >
-          <div className="context-submenu-label">{t("table.columns")}</div>
-          {COLUMN_DEFS.map((c) => {
-            const hidden = colPrefs.hidden.includes(c.id);
-            return (
-              <div key={c.id} className="col-menu-row">
-                <label className="context-item col-menu-check">
-                  <input
-                    type="checkbox"
-                    checked={!hidden}
-                    disabled={!c.canHide}
-                    onChange={() => toggleColHidden(c.id)}
-                  />
-                  {t(c.labelKey as MessageKey)}
-                </label>
-                {c.id !== "name" && (
-                  <span className="col-menu-move">
-                    <button
-                      type="button"
-                      aria-label="↑"
-                      onClick={() => moveCol(c.id, -1)}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="↓"
-                      onClick={() => moveCol(c.id, 1)}
-                    >
-                      ↓
-                    </button>
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <ColumnsMenu
+          x={colMenu.x}
+          y={colMenu.y}
+          colPrefs={colPrefs}
+          onClose={() => setColMenu(null)}
+          onToggleHidden={toggleColHidden}
+          onMove={moveCol}
+        />
       )}
 
       {affinityFor && (

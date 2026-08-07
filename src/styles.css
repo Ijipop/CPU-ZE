@@ -898,12 +898,38 @@ html.is-resizing .bg-glow {
   position: fixed;
   z-index: 50;
   min-width: 200px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 180, 200, 0.35) transparent;
   padding: 6px;
   border-radius: 10px;
   background: #121c26;
   border: 1px solid var(--border-strong);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   animation: menu-in 0.12s ease;
+}
+
+.context-menu::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.context-menu::-webkit-scrollbar-thumb {
+  background: rgba(140, 180, 200, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.context-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 180, 200, 0.42);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.context-menu::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @keyframes menu-in {

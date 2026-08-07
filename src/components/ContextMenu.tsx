@@ -1,4 +1,5 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef } from "react";
+import { useClampedMenuStyle } from "../clampMenuPosition";
 import { useLocale } from "../i18n/LocaleContext";
 import type { MessageKey } from "../i18n";
 
@@ -65,6 +66,7 @@ export function ContextMenu({
   onClose,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const style = useClampedMenuStyle(ref, x, y);
   const { t } = useLocale();
   const multi = selectionCount > 1;
 
@@ -84,11 +86,6 @@ export function ContextMenu({
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
-
-  const style: CSSProperties = {
-    left: Math.min(x, window.innerWidth - 280),
-    top: Math.min(y, window.innerHeight - 420),
-  };
 
   const run = (fn: () => void) => {
     fn();
