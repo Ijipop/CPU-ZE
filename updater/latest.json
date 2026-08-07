@@ -1,11 +1,11 @@
 {
-    "version":  "0.8.2",
-    "notes":  "## CPU-ZE v0.8.2\n\nCorrection du gel UI pendant / après le redimensionnement de la fenêtre.\n\n### Fixes\n- Pause des polls et du paint coûteux (`backdrop-filter`, glow) pendant le drag resize\n- Observers table throttlés (seuils layout / rAF) + remesure à l\u0027idle\n- TitleBar : `isMaximized` débouncé (plus de flood IPC)\n\n### Install\n`CPU-ZE_0.8.2_x64-setup.exe`",
-    "pub_date":  "2026-08-05T16:24:22Z",
+    "version":  "0.8.3",
+    "notes":  "## CPU-ZE v0.8.3\n\nMenus contextuels mieux calés quelle que soit la taille de la fenêtre.\n\n### Fixes\n- Position mesurée (plus de clamp fixe 420/280) : le menu reste dans le viewport\n- Scroll uniquement si nécessaire, scrollbar fine sans gutter permanent\n- Même comportement pour le menu colonnes\n\n### Install\n`CPU-ZE_0.8.3_x64-setup.exe`",
+    "pub_date":  "2026-08-07T16:10:47Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZVVsUkFsNmZLNXNvWERaMnBSNVpVREppcytEa3ZvVGxJanByckNjWFlBSVFHZEw2cHpjSVgycXlRM2RVRFFqanFaV3F6RUdjbGlSYThVSEpuK2RDT1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1OTQ2ODUwCWZpbGU6Q1BVLVpFXzAuOC4yX3g2NC1zZXR1cC5leGUKbUhlajA4WmFYRHVFTjdnZHdqNW91ejRCaXgvVm5DQ1llTWw3ZE1ZMmdLNDlUclVPcVh0aGNLL2R3aURFMXFMK3NTczU1d3FvMWdJSzZEOE1MSjJzQ2c9PQo=",
-                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.8.2/CPU-ZE_0.8.2_x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTbloydVJWUVZ6ZWZuekU5SVFpMXlTYXBOSlJjdG9hUzQrcDFIZFBWVEJKOENYeFhKaVVYL3pSMFVvZU9oVzEwZkEva2dkUW9oaThYM1lZdlNKN09iV1JrbVN1UE9MSFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTE4OTU1CWZpbGU6Q1BVLVpFXzAuOC4zX3g2NC1zZXR1cC5leGUKWmIyeWFvV3VlT0tmbkJkU3VPVE1COXlPY25HTmEvNUFUUmJHR0xsNGVoK0hOYnZUUVhXYVUwakpFTndOak1IOVlrcVVnaXJ6Mm5oSm1rWGVXa2FxRGc9PQo=",
+                                             "url":  "https://github.com/Ijipop/CPU-ZE/releases/download/v0.8.3/CPU-ZE_0.8.3_x64-setup.exe"
                                          }
                   }
 }
